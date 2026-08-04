@@ -1084,14 +1084,30 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 .resize-file-info { font-size: 0.72rem; color: var(--slate-l); }
 .resize-file-info strong { color: var(--forest-d); }
 </style>
-  <!-- Supabase — replace placeholders with your project values -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ═══════════════════════════════════════════════════
+       SUPABASE CONFIG — Replace with your actual values
+       Get these from: Supabase Dashboard > Settings > API
+       ═══════════════════════════════════════════════════ -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    window.SUPABASE_URL  = '__SUPABASE_URL__';   // e.g. https://abcdefgh.supabase.co
-    window.SUPABASE_ANON = '__SUPABASE_ANON_KEY__'; // anon public key from Supabase Dashboard
+    // ── STEP 1: Paste your Supabase values here ──────────
+    const SUPABASE_URL  = 'https://YOUR_PROJECT_REF.supabase.co';
+    const SUPABASE_ANON = 'YOUR_ANON_PUBLIC_KEY';
+
+    // Initialize Supabase client (used throughout the app)
+    const { createClient } = supabase;
+    const _sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // Helper: read from Supabase instead of window.storage
+    async function _sbGet(table, query={}) {
+      try {
+        let q = _sb.from(table).select('*');
+        Object.entries(query).forEach(([k,v]) => q = q.eq(k,v));
+        const { data } = await q;
+        return data;
+      } catch(e) { console.warn('Supabase read error:', e); return null; }
+    }
   </script>
-  <script src="/supabase-client.js"></script>
-  <script src="/admin/supabase-admin.js"></script>
 </head>
 <body>
 

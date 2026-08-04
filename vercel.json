@@ -1,18 +1,20 @@
 {
   "version": 2,
   "name": "lgu-real-quezon",
-  "routes": [
-    { "src": "/admin/(.*)", "dest": "/admin/$1" },
-    { "src": "/(.*)",       "dest": "/public/$1" }
+  "rewrites": [
+    { "source": "/admin",    "destination": "/admin/index.html" },
+    { "source": "/admin/(.*)", "destination": "/admin/$1" },
+    { "source": "/(.*)",     "destination": "/public/$1" }
   ],
   "headers": [
     {
       "source": "/admin/(.*)",
       "headers": [
-        { "key": "X-Robots-Tag",        "value": "noindex, nofollow" },
-        { "key": "X-Frame-Options",      "value": "DENY" },
+        { "key": "X-Robots-Tag",         "value": "noindex, nofollow" },
+        { "key": "X-Frame-Options",       "value": "DENY" },
         { "key": "X-Content-Type-Options","value": "nosniff" },
-        { "key": "Referrer-Policy",      "value": "strict-origin-when-cross-origin" }
+        { "key": "Referrer-Policy",       "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control",         "value": "no-store" }
       ]
     },
     {
