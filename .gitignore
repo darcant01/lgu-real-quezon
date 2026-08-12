@@ -1,0 +1,10 @@
+.env
+.env.local
+.env.production
+.env.*.local
+.vercel/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
