@@ -1251,6 +1251,14 @@
     .hero-particle-float { animation: none !important; }
   }
 </style>
+
+<!-- Supabase — live database connection for LGU Real -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL  = 'https://llybnlehnagtaghtaouj.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxseWJubGVobmFndGFnaHRhb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzU4NzYsImV4cCI6MjEwMjExMTg3Nn0.6rRYJdxcmEbEsv_4Ki317_8MybMs6EqlGaRZapa_418';
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+</script>
 <body>
 
 <nav>
@@ -1971,11 +1979,11 @@
     btn.classList.add('loading');
 
     try {
-      // Load users from shared storage (same store the admin panel uses)
+      // Load users from the live Supabase table (same store the admin panel uses)
       let users = null;
       try {
-        const r = await window.storage.get('lgu_users', true);
-        users = r ? JSON.parse(r.value) : null;
+        const { data } = await _sb.from('lgu_kv').select('value').eq('key', 'lgu_users').maybeSingle();
+        users = data ? data.value : null;
       } catch {}
 
       // Fallback: default admin credentials
@@ -2027,7 +2035,7 @@
       btn.style.background = 'var(--forest-l)';
 
       setTimeout(() => {
-        window.location.href = 'lgu-admin.html';
+        window.location.href = '/admin';
       }, 600);
 
     } catch(err) {
@@ -2068,9 +2076,12 @@
     if (LOCAL_IMG_KEYS.has(key) || key.startsWith('lgu_art_img_')) {
       try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
     }
-    // Everything else in shared storage
-    try { const r = await window.storage.get(key, true); return r ? JSON.parse(r.value) : null; }
-    catch { return null; }
+    // Everything else comes from the live Supabase lgu_kv table
+    try {
+      const { data, error } = await _sb.from('lgu_kv').select('value').eq('key', key).maybeSingle();
+      if (error) throw error;
+      return data ? data.value : null;
+    } catch { return null; }
   }
 
   // ── TICKER ────────────────────────────────────────

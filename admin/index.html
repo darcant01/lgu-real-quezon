@@ -1084,6 +1084,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 .resize-file-info { font-size: 0.72rem; color: var(--slate-l); }
 .resize-file-info strong { color: var(--forest-d); }
 </style>
+
+<!-- Supabase — live database connection for LGU Real -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL  = 'https://llybnlehnagtaghtaouj.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxseWJubGVobmFndGFnaHRhb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzU4NzYsImV4cCI6MjEwMjExMTg3Nn0.6rRYJdxcmEbEsv_4Ki317_8MybMs6EqlGaRZapa_418';
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+</script>
 </head>
 <body>
 
@@ -1196,7 +1204,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     </div>
     <div class="topbar-right">
       <span class="badge-live">Live Site</span>
-      <a href="lgu-real-quezon.html" target="_blank" class="preview-link"><span>↗ Preview Site</span></a>
+      <a href="/" target="_blank" class="preview-link"><span>↗ Preview Site</span></a>
     </div>
   </div>
   <div class="content">
@@ -2548,8 +2556,8 @@ document.addEventListener('click', e => {
 
 // ═══════════════════════════════════════════════
 //  STORAGE — DUAL LAYER
-//  • Shared (window.storage, shared=true): text/metadata only — tiny payloads
-//  • Local  (localStorage):               images/binary — large payloads
+//  • Shared (Supabase lgu_kv table): text/metadata only — tiny payloads
+//  • Local  (localStorage):          images/binary — large payloads
 //
 //  Keys that go to localStorage (images):
 //    lgu_hero_slides, lgu_gallery, lgu_logo_data,
@@ -2562,26 +2570,35 @@ const IMAGE_KEYS = new Set([
 ]);
 // Article images stored separately per article id: lgu_art_img_<id>
 
-// Shared storage (text/metadata)
+// Shared storage (text/metadata) — backed by live Supabase lgu_kv table
 async function sharedGet(key) {
   try {
-    const r = await window.storage.get(key, true);
-    return r ? JSON.parse(r.value) : null;
-  } catch { return null; }
+    const { data, error } = await _sb.from('lgu_kv').select('value').eq('key', key).maybeSingle();
+    if (error) throw error;
+    return data ? data.value : null;
+  } catch(e) {
+    console.error('[sharedGet]', e);
+    return null;
+  }
 }
 async function sharedSet(key, val) {
   try {
     const str = JSON.stringify(val);
-    // Hard guard: shared storage payloads must stay under 200 KB
-    if (str.length > 200 * 1024) {
-      console.warn(`[sharedSet] Payload for "${key}" is ${(str.length/1024).toFixed(1)}KB — too large for shared storage.`);
-      showToast(`⚠️ Content too large for shared storage. Images are stored locally.`, 'error');
-      return false;
+    // Soft guard: warn if payload is unusually large (Supabase JSONB has no hard 200KB limit,
+    // but very large rows slow down reads — keep images out of this table as before)
+    if (str.length > 2 * 1024 * 1024) {
+      console.warn(`[sharedSet] Payload for "${key}" is ${(str.length/1024).toFixed(1)}KB — unusually large.`);
+      showToast(`⚠️ Content very large. Consider moving images to local storage.`, 'error');
     }
-    await window.storage.set(key, str, true);
+    const { error } = await _sb.from('lgu_kv').upsert(
+      { key, value: val, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    if (error) throw error;
     return true;
   } catch(e) {
     console.error('[sharedSet]', e);
+    showToast('Save failed — check your internet connection.', 'error');
     return false;
   }
 }
