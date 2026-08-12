@@ -1820,6 +1820,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <div class="form-hint">Lowercase letters, numbers, and dots only.</div>
       </div>
       <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="user-email" placeholder="e.g. pio@realquezon.gov.ph" autocomplete="off">
+        <div class="form-hint" style="color:#8A6A00;">⚠️ This account must also be created in <strong>Supabase Dashboard → Authentication → Users</strong> with this exact email — that's what actually validates the password. This form only sets their role and permissions.</div>
+      </div>
+      <div class="form-group">
         <label>Department / Office</label>
         <input type="text" id="user-dept" placeholder="e.g. Public Information Office">
       </div>
@@ -1833,11 +1838,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </select>
       </div>
       <div class="form-group" id="user-pass-group">
-        <label>Password *</label>
-        <input type="password" id="user-pass" placeholder="Min. 10 characters" oninput="checkPwdStrength(this.value, 'user-pwd-strength', 'user-pwd-label')">
-        <div class="pwd-strength"><div class="pwd-strength-bar" id="user-pwd-strength"></div></div>
-        <div class="pwd-strength-label" id="user-pwd-label" style="color:var(--slate-l);">Enter a password</div>
-        <div class="form-hint">Must be at least 10 characters with uppercase, lowercase, number, and symbol.</div>
+        <label>Password (set in Supabase Dashboard)</label>
+        <input type="password" id="user-pass" placeholder="Set this in Supabase Auth, not here" disabled style="background:#F0EDE5;cursor:not-allowed;">
+        <div class="form-hint">Passwords are managed by Supabase Authentication for security. Set or reset this user's password in Supabase Dashboard → Authentication → Users.</div>
       </div>
       <div class="form-group">
         <div class="toggle-wrap">
@@ -2176,13 +2179,14 @@ async function verifyPass(input, stored) {
   return (await hashAsync(input)) === stored;
 }
 
-// Default first-boot user (password: Admin@Real2026!)
+// Default first-boot user — create this exact account in Supabase Dashboard →
+// Authentication → Users, with this email and your chosen password.
 const DEFAULT_USERS = [{
   id:'u1', name:'System Administrator', username:'admin',
+  email:'admin@realquezon.gov.ph',
   dept:'IT / MIS', role:'super',
-  passHash: '__plain__' + btoa('Admin@Real2026!'),
   mfaEnabled:false, mfaSecret:'', active:true,
-  forcePassChange:true, createdAt:new Date().toISOString()
+  forcePassChange:false, createdAt:new Date().toISOString()
 }];
 
 // ── LOCKOUT HELPERS ───────────────────────────
@@ -2221,9 +2225,28 @@ async function doLogin() {
   const users = await dbGet('lgu_users') || DEFAULT_USERS;
   const user  = users.find(u => u.username === username && u.active !== false);
 
-  const match = user ? await verifyPass(password, user.passHash) : false;
+  if (!user || !user.email) {
+    const attempts = incAttempts(username);
+    const remaining = MAX_ATTEMPTS - attempts;
+    if (remaining <= 0) {
+      setLockout(username, { until: Date.now() + LOCKOUT_MS });
+      lockEl.style.display = 'block';
+      document.getElementById('lockout-countdown').textContent = 'Try again in 15 minutes.';
+      auditLog('security', `Account locked after ${MAX_ATTEMPTS} failed attempts: ${username}`, null);
+    } else {
+      errEl.textContent = 'Incorrect username or password.';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
 
-  if (!user || !match) {
+  // Real credential check — validated by Supabase Auth, not the app itself
+  const { data: authData, error: authErr } = await _sb.auth.signInWithPassword({
+    email: user.email,
+    password: password
+  });
+
+  if (authErr || !authData?.session) {
     const attempts = incAttempts(username);
     const remaining = MAX_ATTEMPTS - attempts;
     if (remaining <= 0) {
@@ -2334,6 +2357,7 @@ function applyRBAC(role) {
 
 function doLogout() {
   if (_currentUser) auditLog('logout', `Signed out: ${_currentUser.name||_currentUser.username}`, _currentUser);
+  _sb.auth.signOut().catch(() => {});
   _currentUser = null;
   clearSessionTimer();
   document.getElementById('login-screen').style.display = 'flex';
@@ -2416,10 +2440,18 @@ async function changePassword() {
   const err=validateStrongPassword(np);
   if(err) return showToast(err,'error');
   if(np!==cp) return showToast('Passwords do not match','error');
-  const hash=await hashAsync(np);
+
+  const { error } = await _sb.auth.updateUser({ password: np });
+  if (error) {
+    showToast('Password update failed: ' + error.message, 'error');
+    return;
+  }
+
+  // Clear the forcePassChange flag in the role/metadata record
   const users=await dbGet('lgu_users')||DEFAULT_USERS;
   const idx=users.findIndex(u=>_currentUser&&u.id===_currentUser.id);
-  if(idx>=0){users[idx].passHash=hash;users[idx].forcePassChange=false;await dbSet('lgu_users',users);_currentUser=users[idx];}
+  if(idx>=0){users[idx].forcePassChange=false;await dbSet('lgu_users',users);_currentUser=users[idx];}
+
   document.getElementById('new-pass').value='';
   document.getElementById('confirm-pass').value='';
   auditLog('security','Password changed',_currentUser);
@@ -2455,42 +2487,54 @@ function openAddUserModal(idx=null) {
   const u=idx!==null?adminUsers[idx]:{};
   document.getElementById('user-name').value=u.name||'';
   document.getElementById('user-username').value=u.username||'';
+  document.getElementById('user-email').value=u.email||'';
   document.getElementById('user-dept').value=u.dept||'';
   document.getElementById('user-role').value=u.role||'editor';
-  document.getElementById('user-pass').value='';
-  document.getElementById('user-pwd-strength').style.width='0';
-  document.getElementById('user-pwd-label').textContent=idx!==null?'Leave blank to keep current password':'Enter a password';
-  document.getElementById('user-pass').placeholder=idx!==null?'Leave blank to keep current':'Min. 10 characters';
   document.getElementById('user-mfa-toggle').className='toggle '+(u.mfaEnabled?'on':'');
   document.getElementById('user-active-toggle').className='toggle '+(idx===null||u.active?'on':'');
   openModal('user-modal');
 }
 function editUser(i){openAddUserModal(i);}
 async function saveUser() {
-  const idx=document.getElementById('user-edit-id').value;
-  const name=(document.getElementById('user-name').value||'').trim();
-  const username=(document.getElementById('user-username').value||'').trim().toLowerCase().replace(/[^a-z0-9.]/g,'');
-  const dept=(document.getElementById('user-dept').value||'').trim();
-  const role=document.getElementById('user-role').value;
-  const passRaw=document.getElementById('user-pass').value;
-  const mfa=document.getElementById('user-mfa-toggle').classList.contains('on');
-  const active=document.getElementById('user-active-toggle').classList.contains('on');
-  if(!username) return showToast('Username is required','error');
-  let passHash;
-  if(passRaw){const e=validateStrongPassword(passRaw);if(e)return showToast(e,'error');passHash=await hashAsync(passRaw);}
-  const users=await dbGet('lgu_users')||DEFAULT_USERS;
-  if(idx!==''){
-    const i=parseInt(idx);
-    users[i]={...users[i],name,username,dept,role,mfaEnabled:mfa,active};
-    if(passHash)users[i].passHash=passHash;
+  const idx      = document.getElementById('user-edit-id').value;
+  const name     = document.getElementById('user-name').value.trim();
+  const username = document.getElementById('user-username').value.trim().toLowerCase();
+  const email    = document.getElementById('user-email').value.trim().toLowerCase();
+  const dept     = document.getElementById('user-dept').value.trim();
+  const role     = document.getElementById('user-role').value;
+  const mfaEnabled  = document.getElementById('user-mfa-toggle').classList.contains('on');
+  const active      = document.getElementById('user-active-toggle').classList.contains('on');
+
+  if (!username) return showToast('Username is required', 'error');
+  if (!email || !email.includes('@')) return showToast('A valid email is required', 'error');
+
+  const users = await dbGet('lgu_users') || DEFAULT_USERS;
+
+  if (idx !== '') {
+    const i = parseInt(idx);
+    users[i] = { ...users[i], name, username, email, dept, role, mfaEnabled, active };
   } else {
-    if(!passRaw) return showToast('Password required for new users','error');
-    if(users.find(u=>u.username===username)) return showToast('Username already taken','error');
-    users.push({id:'u'+Date.now(),name,username,dept,role,passHash,mfaEnabled:mfa,mfaSecret:'',active,forcePassChange:false,createdAt:new Date().toISOString()});
+    if (users.find(u => u.username === username)) return showToast('Username already exists', 'error');
+    if (users.find(u => u.email === email)) return showToast('Email already in use', 'error');
+    users.push({
+      id: 'u' + Date.now(), name, username, email, dept, role,
+      mfaEnabled, mfaSecret: '', active, forcePassChange: true,
+      createdAt: new Date().toISOString()
+    });
   }
-  const ok=await dbSet('lgu_users',users);
-  if(ok){adminUsers=users;renderUsersList();closeModal('user-modal');auditLog('save',`User ${idx!==''?'updated':'created'}: @${username} (${ROLE_LABELS[role]||role})`,_currentUser);showToast(`User ${idx!==''?'updated':'created'} ✓`);}
-  else showToast('Save failed','error');
+
+  const ok = await dbSet('lgu_users', users);
+  if (ok) {
+    adminUsers = users;
+    renderUsersList();
+    closeModal('user-modal');
+    auditLog('save', `User ${idx!==''?'updated':'created'}: @${username} (${ROLE_LABELS[role]})`, _currentUser);
+    if (idx === '') {
+      showToast(`User role created ✓ — now create "${email}" in Supabase Dashboard → Authentication → Users to enable their login.`, 'success');
+    } else {
+      showToast('User updated ✓');
+    }
+  } else showToast('Save failed', 'error');
 }
 async function deleteUser(i) {
   if(!confirm(`Remove @${adminUsers[i].username}?`))return;
@@ -4451,21 +4495,35 @@ function escHtml(s) {
 (async function checkSSO() {
   const ssoUser = sessionStorage.getItem('lgu_sso_user');
   const ssoTs   = parseInt(sessionStorage.getItem('lgu_sso_ts') || '0');
-  // Token must be fresh (within 60 seconds)
-  if (!ssoUser || Date.now() - ssoTs > 60_000) return;
-  // Clear the token so it can't be reused
-  sessionStorage.removeItem('lgu_sso_user');
-  sessionStorage.removeItem('lgu_sso_ts');
-  // Load users and find matching account
+  const ssoFresh = ssoUser && (Date.now() - ssoTs <= 60_000);
+
+  if (ssoFresh) {
+    sessionStorage.removeItem('lgu_sso_user');
+    sessionStorage.removeItem('lgu_sso_ts');
+    try {
+      const users = await dbGet('lgu_users') || DEFAULT_USERS;
+      const user  = users.find(u => u.username === ssoUser && u.active !== false);
+      if (user) {
+        document.getElementById('login-user').value = ssoUser;
+        completeLogin(user);
+        return;
+      }
+    } catch(e) { console.warn('SSO check failed:', e); }
+  }
+
+  // Fallback: if a valid Supabase Auth session already exists (e.g. page refresh,
+  // or returning within the session lifetime), restore it without re-prompting login.
   try {
-    const users = await dbGet('lgu_users') || DEFAULT_USERS;
-    const user  = users.find(u => u.username === ssoUser && u.active !== false);
-    if (user) {
-      // Pre-fill username visually, then complete login
-      document.getElementById('login-user').value = ssoUser;
-      completeLogin(user);
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session?.user?.email) {
+      const users = await dbGet('lgu_users') || DEFAULT_USERS;
+      const user  = users.find(u => u.email === session.user.email && u.active !== false);
+      if (user) {
+        document.getElementById('login-user').value = user.username;
+        completeLogin(user);
+      }
     }
-  } catch(e) { console.warn('SSO check failed:', e); }
+  } catch(e) { console.warn('Session restore check failed:', e); }
 })();
 </script>
 </body>

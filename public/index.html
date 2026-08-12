@@ -1979,31 +1979,37 @@
     btn.classList.add('loading');
 
     try {
-      // Load users from the live Supabase table (same store the admin panel uses)
+      // Look up the user's role/email record (metadata only — not the password)
       let users = null;
       try {
         const { data } = await _sb.from('lgu_kv').select('value').eq('key', 'lgu_users').maybeSingle();
         users = data ? data.value : null;
       } catch {}
 
-      // Fallback: default admin credentials
-      if (!users) {
-        users = [{ username: 'admin', passHash: '__plain__' + btoa('Admin@Real2026!'), active: true }];
-      }
+      const user = users ? users.find(u => u.username === username && u.active !== false) : null;
 
-      const user = users.find(u => u.username === username && u.active !== false);
-      let match = false;
-
-      if (user) {
-        if (user.passHash && user.passHash.startsWith('__plain__')) {
-          match = atob(user.passHash.replace('__plain__','')) === password;
-        } else if (user.passHash) {
-          const hash = await hashForModal(password);
-          match = hash === user.passHash;
+      if (!user || !user.email) {
+        const attempts  = incModalAttempts(username);
+        const remaining = MODAL_MAX_ATTEMPTS - attempts;
+        if (remaining <= 0) {
+          setModalLockout(username, { until: Date.now() + MODAL_LOCKOUT_MS });
+          lockEl.classList.add('show');
+          document.getElementById('admin-lockout-timer').textContent = 'Try again in 15 minutes.';
+        } else {
+          errText.textContent = 'Incorrect username or password.';
+          errEl.classList.add('show');
         }
+        btn.classList.remove('loading');
+        return;
       }
 
-      if (!user || !match) {
+      // Real credential check — validated by Supabase Auth
+      const { data: authData, error: authErr } = await _sb.auth.signInWithPassword({
+        email: user.email,
+        password: password
+      });
+
+      if (authErr || !authData?.session) {
         const attempts  = incModalAttempts(username);
         const remaining = MODAL_MAX_ATTEMPTS - attempts;
         if (remaining <= 0) {
