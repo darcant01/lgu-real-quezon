@@ -1,11 +1,6 @@
 {
   "version": 2,
   "name": "lgu-real-quezon",
-  "rewrites": [
-    { "source": "/admin",    "destination": "/admin/index.html" },
-    { "source": "/admin/(.*)", "destination": "/admin/$1" },
-    { "source": "/(.*)",     "destination": "/public/$1" }
-  ],
   "headers": [
     {
       "source": "/admin/(.*)",
