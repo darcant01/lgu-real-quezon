@@ -1181,6 +1181,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('events', this)"><span class="icon">📅</span> Events</button>
     <button class="nav-item" onclick="switchPanel('gallery', this)"><span class="icon">🖼️</span> Gallery</button>
     <button class="nav-item" onclick="switchPanel('transparency', this)"><span class="icon">📋</span> Documents</button>
+    <button class="nav-item" onclick="switchPanel('charter', this)"><span class="icon">📜</span> Citizen's Charter</button>
     <button class="nav-item" onclick="switchPanel('barangays', this)"><span class="icon">🗺️</span> Barangays</button>
     <button class="nav-item" onclick="switchPanel('directory', this)"><span class="icon">📞</span> Directory</button>
     <button class="nav-item" onclick="switchPanel('faq', this)"><span class="icon">❓</span> FAQ</button>
@@ -1371,6 +1372,19 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="documents-editor">
           <p style="color:var(--slate-l);font-size:0.85rem;">No documents yet. Click + Add Document.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CITIZEN'S CHARTER -->
+    <div class="panel" id="panel-charter">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>📜 Citizen's Charter</h3><p>RA 11032-compliant service listings — requirements, steps, processing time, and fees for every government transaction.</p></div>
+          <button class="btn btn-gold" onclick="openCharterEditModal()">+ Add Service</button>
+        </div>
+        <div class="card-body" id="charter-editor-list">
+          <p style="color:var(--slate-l);font-size:0.85rem;">No services published yet. Click + Add Service to create your first Citizen's Charter entry.</p>
         </div>
       </div>
     </div>
@@ -1876,6 +1890,82 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
   </div>
 </div>
 
+<!-- CHARTER EDIT MODAL -->
+<div class="modal-overlay" id="charter-edit-modal">
+  <div class="modal" style="width:760px">
+    <div class="modal-header">
+      <h3 id="charter-edit-title">Add Citizen's Charter Service</h3>
+      <button class="modal-close" onclick="closeModal('charter-edit-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="charter-edit-id">
+      <div class="form-group">
+        <label>Service Title *</label>
+        <input type="text" id="charter-title" placeholder="e.g. Application for Business Permit (New)">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <select id="charter-category">
+            <option value="Civil Registry">Civil Registry</option>
+            <option value="Business">Business</option>
+            <option value="Health">Health</option>
+            <option value="Social Services">Social Services</option>
+            <option value="Property & Tax">Property & Tax</option>
+            <option value="Building & Permits">Building & Permits</option>
+            <option value="Environmental">Environmental</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Responsible Office</label>
+          <input type="text" id="charter-office" placeholder="e.g. Business Permits and Licensing Office">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Who May Avail</label>
+          <input type="text" id="charter-clients" placeholder="e.g. General Public / Business Owners">
+        </div>
+        <div class="form-group">
+          <label></label>
+          <div class="toggle-wrap" style="margin-top:10px;">
+            <button class="toggle on" id="charter-active-toggle" onclick="toggleBtn(this)"></button>
+            <span class="toggle-label">Published (visible on site)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>📋 Requirements Checklist</label>
+        <div id="charter-req-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addCharterReq()" style="margin-top:8px;">+ Add Requirement</button>
+      </div>
+
+      <div class="form-group">
+        <label>🪜 Step-by-Step Process</label>
+        <div id="charter-steps-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addCharterStep()" style="margin-top:8px;">+ Add Step</button>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Total Processing Time</label>
+          <input type="text" id="charter-total-duration" placeholder="e.g. 3 working days">
+        </div>
+        <div class="form-group">
+          <label>Total Fee</label>
+          <input type="text" id="charter-total-fee" placeholder="e.g. ₱500.00 or Free">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('charter-edit-modal')">Cancel</button>
+      <button class="btn btn-gold" onclick="saveCharterEntry()">Save Service</button>
+    </div>
+  </div>
+</div>
+
 <!-- HYPERLINK MODAL -->
 <div class="link-modal-overlay" id="link-modal">
   <div class="link-modal">
@@ -2129,10 +2219,10 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','barangays','directory','faq','hero','officials','services','settings','users','audit'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','settings','users','audit'],
   editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
-  compliance: ['dashboard','transparency'],
-  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','barangays','directory','faq','officials','services'],
+  compliance: ['dashboard','transparency','charter'],
+  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services'],
 };
 const ROLE_LABELS = { super:'Super Admin', editor:'Editor (PIO)', compliance:'Compliance Officer', viewer:'Viewer' };
 const ROLE_CSS    = { super:'role-super', editor:'role-editor', compliance:'role-compliance', viewer:'role-viewer' };
@@ -2744,7 +2834,7 @@ async function loadAll() {
   await Promise.all([
     loadHeroSlides(), loadOfficialsAdmin(), loadAlert(),
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(),
-    loadDocumentsAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
+    loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
     loadFAQAdmin(), loadAdminUsers(), loadAuditTrail()
   ]);
   renderDash(); renderAnn(); renderArticles(); applySettings();
@@ -2758,7 +2848,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -3348,6 +3438,158 @@ async function saveDocuments() {
   const ok = await dbSet('lgu_documents', documents);
   if (ok) showToast(`Documents saved — ${documents.length} file${documents.length!==1?'s':''} ✓`);
   else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
+//  CITIZEN'S CHARTER (RA 11032)
+// ═══════════════════════════════════════════════
+let charterEntries = [];
+let _charterEditIdx = null; // null = new entry, number = editing existing
+let _charterReqs  = [];     // working requirements list while editing
+let _charterSteps = [];     // working steps list while editing
+
+async function loadCharterAdmin() {
+  charterEntries = await dbGet('lgu_charter') || [];
+  renderCharterList();
+}
+
+function renderCharterList() {
+  const el = document.getElementById('charter-editor-list');
+  if (!charterEntries.length) {
+    el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No services published yet. Click + Add Service to create your first Citizen\'s Charter entry.</p>';
+    return;
+  }
+  el.innerHTML = charterEntries.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);margin-bottom:10px;">
+      <div style="width:44px;height:44px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📜</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.92rem;font-weight:600;color:var(--forest-d);">${escHtml(c.title||'Untitled Service')}</div>
+        <div style="font-size:0.78rem;color:var(--slate-l);margin-top:2px;">
+          ${escHtml(c.category||'General')} · ${escHtml(c.office||'No office set')}
+          · ${(c.requirements||[]).length} requirement${(c.requirements||[]).length!==1?'s':''}
+          · ${(c.steps||[]).length} step${(c.steps||[]).length!==1?'s':''}
+        </div>
+        <div style="font-size:0.72rem;margin-top:4px;">
+          <span style="padding:2px 8px;border-radius:20px;background:${c.active!==false?'rgba(56,161,105,0.1)':'rgba(229,62,62,0.08)'};color:${c.active!==false?'var(--green)':'var(--red)'};font-weight:600;">
+            ${c.active!==false ? 'Published' : 'Draft'}
+          </span>
+          <span style="color:var(--slate-l);margin-left:8px;">⏱ ${escHtml(c.totalDuration||'—')} &nbsp;·&nbsp; 💰 ${escHtml(c.totalFee||'Free')}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-ghost btn-sm" onclick="openCharterEditModal(${i})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCharterEntry(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function openCharterEditModal(idx = null) {
+  _charterEditIdx = idx;
+  const c = idx !== null ? charterEntries[idx] : {};
+
+  document.getElementById('charter-edit-title').textContent = idx !== null ? 'Edit Citizen\'s Charter Service' : 'Add Citizen\'s Charter Service';
+  document.getElementById('charter-edit-id').value = idx !== null ? idx : '';
+  document.getElementById('charter-title').value    = c.title || '';
+  document.getElementById('charter-category').value = c.category || 'Civil Registry';
+  document.getElementById('charter-office').value   = c.office || '';
+  document.getElementById('charter-clients').value  = c.clients || '';
+  document.getElementById('charter-total-duration').value = c.totalDuration || '';
+  document.getElementById('charter-total-fee').value      = c.totalFee || '';
+  document.getElementById('charter-active-toggle').className = 'toggle ' + (idx === null || c.active !== false ? 'on' : '');
+
+  _charterReqs  = c.requirements ? [...c.requirements] : [];
+  _charterSteps = c.steps ? c.steps.map(s => ({...s})) : [];
+  renderCharterReqs();
+  renderCharterSteps();
+
+  openModal('charter-edit-modal');
+}
+
+function renderCharterReqs() {
+  const el = document.getElementById('charter-req-list');
+  if (!_charterReqs.length) {
+    el.innerHTML = '<p style="color:var(--slate-l);font-size:0.8rem;margin:0;">No requirements added yet.</p>';
+    return;
+  }
+  el.innerHTML = _charterReqs.map((r, i) => `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="font-size:0.78rem;color:var(--slate-l);width:18px;flex-shrink:0;">${i+1}.</span>
+      <input type="text" value="${escHtml(r)}" placeholder="e.g. Valid Government-issued ID"
+        oninput="_charterReqs[${i}]=this.value"
+        style="flex:1;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.84rem;font-family:'Inter',sans-serif;outline:none;">
+      <button class="btn btn-danger btn-sm" onclick="removeCharterReq(${i})" style="flex-shrink:0;">🗑</button>
+    </div>`).join('');
+}
+function addCharterReq() { _charterReqs.push(''); renderCharterReqs(); }
+function removeCharterReq(i) { _charterReqs.splice(i,1); renderCharterReqs(); }
+
+function renderCharterSteps() {
+  const el = document.getElementById('charter-steps-list');
+  if (!_charterSteps.length) {
+    el.innerHTML = '<p style="color:var(--slate-l);font-size:0.8rem;margin:0;">No steps added yet.</p>';
+    return;
+  }
+  el.innerHTML = _charterSteps.map((s, i) => `
+    <div style="display:grid;grid-template-columns:24px 3fr 1.2fr 1.2fr auto;gap:8px;align-items:center;">
+      <span style="font-size:0.78rem;color:var(--slate-l);">${i+1}.</span>
+      <input type="text" value="${escHtml(s.action||'')}" placeholder="e.g. Submit application form to window 1"
+        oninput="_charterSteps[${i}].action=this.value"
+        style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+      <input type="text" value="${escHtml(s.duration||'')}" placeholder="e.g. 5 mins"
+        oninput="_charterSteps[${i}].duration=this.value"
+        style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+      <input type="text" value="${escHtml(s.fee||'')}" placeholder="e.g. Free"
+        oninput="_charterSteps[${i}].fee=this.value"
+        style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+      <button class="btn btn-danger btn-sm" onclick="removeCharterStep(${i})">🗑</button>
+    </div>`).join('');
+}
+function addCharterStep() { _charterSteps.push({ action:'', duration:'', fee:'' }); renderCharterSteps(); }
+function removeCharterStep(i) { _charterSteps.splice(i,1); renderCharterSteps(); }
+
+async function saveCharterEntry() {
+  const title = document.getElementById('charter-title').value.trim();
+  if (!title) return showToast('Service title is required', 'error');
+
+  const entry = {
+    title,
+    category: document.getElementById('charter-category').value,
+    office:   document.getElementById('charter-office').value.trim(),
+    clients:  document.getElementById('charter-clients').value.trim(),
+    requirements: _charterReqs.filter(r => r.trim()),
+    steps:        _charterSteps.filter(s => s.action && s.action.trim()),
+    totalDuration: document.getElementById('charter-total-duration').value.trim(),
+    totalFee:      document.getElementById('charter-total-fee').value.trim(),
+    active: document.getElementById('charter-active-toggle').classList.contains('on'),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (_charterEditIdx !== null) {
+    charterEntries[_charterEditIdx] = { ...charterEntries[_charterEditIdx], ...entry };
+  } else {
+    entry.id = Date.now();
+    charterEntries.unshift(entry);
+  }
+
+  const ok = await dbSet('lgu_charter', charterEntries);
+  if (ok) {
+    auditLog('save', `Citizen's Charter service ${_charterEditIdx!==null?'updated':'added'}: "${title}"`, _currentUser);
+    showToast('Citizen\'s Charter service saved ✓');
+    renderCharterList();
+    closeModal('charter-edit-modal');
+  } else {
+    showToast('Save failed', 'error');
+  }
+}
+
+async function deleteCharterEntry(i) {
+  if (!confirm(`Delete "${charterEntries[i].title}"?`)) return;
+  const title = charterEntries[i].title;
+  charterEntries.splice(i, 1);
+  await dbSet('lgu_charter', charterEntries);
+  auditLog('delete', `Citizen's Charter service deleted: "${title}"`, _currentUser);
+  renderCharterList();
+  showToast('Service deleted');
 }
 
 // ═══════════════════════════════════════════════

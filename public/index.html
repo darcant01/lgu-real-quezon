@@ -649,6 +649,42 @@
   .doc-download { font-size: 16px; flex-shrink: 0; color: var(--gold); }
   .doc-empty { text-align: center; padding: 40px; color: var(--slate-l); font-size: 0.88rem; grid-column: 1/-1; }
 
+  /* ── CITIZEN'S CHARTER ── */
+  .charter { padding: 90px 8%; background: var(--cream); }
+  .charter-categories { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+  .charter-cat-btn { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 0.78rem; font-weight: 600; cursor: pointer; color: var(--slate); font-family: 'Inter', sans-serif; transition: all 0.15s; }
+  .charter-cat-btn:hover, .charter-cat-btn.active { background: var(--forest); color: white; border-color: var(--forest); }
+  .charter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .charter-card { background: white; border-radius: 12px; padding: 22px 24px; border: 1px solid rgba(26,60,46,0.08); cursor: pointer; transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s; }
+  .charter-card:hover { transform: translateY(-5px); box-shadow: 0 16px 40px rgba(26,60,46,0.14); border-color: var(--forest-l); }
+  .charter-cat-tag { display: inline-block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; background: rgba(201,162,39,0.15); color: var(--gold-d, #8A6A00); margin-bottom: 12px; }
+  .charter-card h3 { font-family: 'Playfair Display', serif; font-size: 1.02rem; font-weight: 700; color: var(--forest-d); margin-bottom: 6px; line-height: 1.35; }
+  .charter-office { font-size: 0.78rem; color: var(--slate-l); margin-bottom: 14px; }
+  .charter-stats { display: flex; gap: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .charter-stat { flex: 1; }
+  .charter-stat strong { display: block; font-size: 0.85rem; font-weight: 700; color: var(--forest); }
+  .charter-stat span { font-size: 0.65rem; color: var(--slate-l); text-transform: uppercase; letter-spacing: 0.05em; }
+  .charter-empty { text-align: center; padding: 40px; color: var(--slate-l); font-size: 0.88rem; grid-column: 1/-1; }
+
+  /* Charter detail modal */
+  .charter-modal-overlay { position: fixed; inset: 0; background: rgba(15,36,25,0.7); backdrop-filter: blur(4px); z-index: 700; display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+  .charter-modal-overlay.open { display: flex; }
+  .charter-modal { background: white; border-radius: 16px; max-width: 720px; width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,0.4); }
+  .charter-modal-header { background: var(--forest); color: white; padding: 28px 32px; border-radius: 16px 16px 0 0; position: relative; }
+  .charter-modal-header h2 { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 8px; padding-right: 30px; }
+  .charter-modal-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+  .charter-modal-body { padding: 28px 32px; }
+  .charter-modal-summary { display: flex; gap: 24px; margin-bottom: 26px; flex-wrap: wrap; }
+  .charter-summary-item strong { display: block; font-size: 1rem; color: var(--forest-d); font-family: 'Playfair Display', serif; }
+  .charter-summary-item span { font-size: 0.68rem; color: var(--slate-l); text-transform: uppercase; letter-spacing: 0.06em; }
+  .charter-req-list { list-style: none; margin-bottom: 26px; }
+  .charter-req-list li { padding: 8px 0 8px 26px; position: relative; font-size: 0.88rem; color: var(--slate); border-bottom: 1px solid var(--border); }
+  .charter-req-list li::before { content: '✓'; position: absolute; left: 0; color: var(--forest-l); font-weight: 700; }
+  .charter-steps-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .charter-steps-table th { text-align: left; padding: 10px 12px; background: var(--forest-d); color: white; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .charter-steps-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--slate); vertical-align: top; }
+  .charter-steps-table tr:nth-child(even) td { background: var(--cream); }
+
   /* ── BARANGAY PROFILES ── */
   .barangays { padding: 90px 8%; background: var(--cream); }
   .barangay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; margin-top: 40px; }
@@ -1278,6 +1314,7 @@
     <li><a href="#events">Events</a></li>
     <li><a href="#gallery">Gallery</a></li>
     <li><a href="#transparency">Documents</a></li>
+    <li><a href="#charter">Citizen's Charter</a></li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
@@ -1302,6 +1339,7 @@
   <a href="#directory"     onclick="closeMobileNav()">📞 Directory</a>
   <div class="drawer-section">Resources</div>
   <a href="#transparency"  onclick="closeMobileNav()">📂 Public Documents</a>
+  <a href="#charter"       onclick="closeMobileNav()">📋 Citizen's Charter</a>
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
@@ -1625,6 +1663,47 @@
     <div class="doc-empty">No documents published yet.</div>
   </div>
 </section>
+
+<!-- CITIZEN'S CHARTER -->
+<section class="charter" id="charter">
+  <div class="section-label">RA 11032 Compliance</div>
+  <h2 class="section-title">Citizen's Charter</h2>
+  <p class="section-sub">Know exactly what to bring, how long it takes, and what it costs — for every government service, before you even leave home.</p>
+  <div class="charter-categories" id="charter-categories">
+    <button class="charter-cat-btn active" onclick="filterCharter('all', this)">All Services</button>
+  </div>
+  <div class="charter-grid" id="charter-grid">
+    <div class="charter-empty">No services published yet.</div>
+  </div>
+</section>
+
+<!-- CHARTER DETAIL MODAL -->
+<div class="charter-modal-overlay" id="charter-modal-overlay" onclick="if(event.target===this)closeCharterModal()">
+  <div class="charter-modal">
+    <div class="charter-modal-header">
+      <button class="charter-modal-close" onclick="closeCharterModal()">✕</button>
+      <span class="charter-cat-tag" id="charter-modal-cat" style="background:rgba(255,255,255,0.2);color:white;"></span>
+      <h2 id="charter-modal-title"></h2>
+      <p id="charter-modal-office" style="font-size:0.85rem;color:rgba(255,255,255,0.75);"></p>
+    </div>
+    <div class="charter-modal-body">
+      <div class="charter-modal-summary">
+        <div class="charter-summary-item"><strong id="charter-modal-duration">—</strong><span>Total Processing Time</span></div>
+        <div class="charter-summary-item"><strong id="charter-modal-fee">—</strong><span>Total Fee</span></div>
+        <div class="charter-summary-item"><strong id="charter-modal-clients">—</strong><span>Who May Avail</span></div>
+      </div>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--forest-d);margin-bottom:12px;">📋 Requirements Checklist</h3>
+      <ul class="charter-req-list" id="charter-modal-requirements"></ul>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--forest-d);margin-bottom:12px;">🪜 Step-by-Step Process</h3>
+      <div style="overflow-x:auto;">
+        <table class="charter-steps-table">
+          <thead><tr><th style="width:36px;">#</th><th>Step</th><th>Duration</th><th>Fee</th></tr></thead>
+          <tbody id="charter-modal-steps"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- BARANGAY PROFILES -->
 <section class="barangays" id="barangays">
@@ -2516,6 +2595,71 @@
       </a>`).join('');
   }
 
+  // ── CITIZEN'S CHARTER ─────────────────────────────
+  let _allCharter = [];
+  async function loadCharter() {
+    const items = await safeGet('lgu_charter');
+    if (!items || !items.length) return;
+    _allCharter = items.filter(c => c.active !== false);
+    if (!_allCharter.length) return;
+    const cats = ['All Services', ...new Set(_allCharter.map(c => c.category).filter(Boolean))];
+    const catEl = document.getElementById('charter-categories');
+    catEl.innerHTML = cats.map((c,i) =>
+      `<button class="charter-cat-btn${i===0?' active':''}" onclick="filterCharter('${esc(i===0?'all':c)}',this)">${esc(c)}</button>`
+    ).join('');
+    filterCharter('all', catEl.firstElementChild);
+  }
+  function filterCharter(cat, btn) {
+    document.querySelectorAll('.charter-cat-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const filtered = cat === 'all' ? _allCharter : _allCharter.filter(c => c.category === cat);
+    const grid = document.getElementById('charter-grid');
+    if (!filtered.length) { grid.innerHTML = '<div class="charter-empty">No services in this category.</div>'; return; }
+    grid.innerHTML = filtered.map((c) => {
+      const idx = _allCharter.indexOf(c);
+      return `
+      <div class="charter-card" onclick="openCharterModal(${idx})">
+        <span class="charter-cat-tag">${esc(c.category||'General')}</span>
+        <h3>${esc(c.title)}</h3>
+        <div class="charter-office">🏢 ${esc(c.office||'')}</div>
+        <div class="charter-stats">
+          <div class="charter-stat"><strong>${esc(c.totalDuration||'—')}</strong><span>Duration</span></div>
+          <div class="charter-stat"><strong>${esc(c.totalFee||'Free')}</strong><span>Fee</span></div>
+          <div class="charter-stat"><strong>${(c.requirements||[]).length}</strong><span>Requirements</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  function openCharterModal(idx) {
+    const c = _allCharter[idx];
+    if (!c) return;
+    document.getElementById('charter-modal-cat').textContent = c.category || 'General';
+    document.getElementById('charter-modal-title').textContent = c.title || '';
+    document.getElementById('charter-modal-office').textContent = '🏢 ' + (c.office || '');
+    document.getElementById('charter-modal-duration').textContent = c.totalDuration || '—';
+    document.getElementById('charter-modal-fee').textContent = c.totalFee || 'Free';
+    document.getElementById('charter-modal-clients').textContent = c.clients || 'General Public';
+    document.getElementById('charter-modal-requirements').innerHTML =
+      (c.requirements||[]).map(r => `<li>${esc(r)}</li>`).join('') || '<li style="opacity:0.5;">No specific requirements listed.</li>';
+    document.getElementById('charter-modal-steps').innerHTML =
+      (c.steps||[]).map((s,i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${esc(s.action||'')}</td>
+          <td>${esc(s.duration||'—')}</td>
+          <td>${esc(s.fee||'Free')}</td>
+        </tr>`).join('') || '<tr><td colspan="4" style="opacity:0.5;">No steps listed.</td></tr>';
+    document.getElementById('charter-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCharterModal() {
+    document.getElementById('charter-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeCharterModal();
+  });
+
   // ── BARANGAY PROFILES ─────────────────────────────
   async function loadBarangays() {
     const bgys = await safeGet('lgu_barangays');
@@ -2585,7 +2729,7 @@
     await Promise.all([
       loadTicker(), loadNews(), loadHeroSlides(), loadOfficials(),
       loadAlert(), loadEvents(), loadGallery(), loadServices(),
-      loadBranding(), loadDocuments(), loadBarangays(), loadDirectory(), loadFAQ()
+      loadBranding(), loadDocuments(), loadCharter(), loadBarangays(), loadDirectory(), loadFAQ()
     ]);
   })();
 </script>
