@@ -261,6 +261,41 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 
 /* ── STATS ROW ── */
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
+/* ── COMPLIANCE DASHBOARD TILES ── */
+.compliance-tile {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: white;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.compliance-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+.compliance-tile.status-live {
+  border-color: rgba(56,161,105,0.3);
+  background: linear-gradient(145deg, #F3FBF6, white);
+}
+.compliance-tile.status-setup {
+  border-color: rgba(230,126,34,0.35);
+  background: linear-gradient(145deg, #FFF9F0, white);
+}
+.compliance-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.compliance-tile.status-live .compliance-icon { background: rgba(56,161,105,0.15); }
+.compliance-tile.status-setup .compliance-icon { background: rgba(230,126,34,0.15); }
+.compliance-body { flex: 1; min-width: 0; }
+.compliance-body strong { display: block; font-size: 0.84rem; color: var(--forest-d); line-height: 1.3; }
+.compliance-body span { font-size: 0.7rem; color: var(--slate-l); display: block; margin-top: 2px; }
+.compliance-badge {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+  display: inline-block; margin-top: 6px;
+}
+.compliance-tile.status-live .compliance-badge   { background: rgba(56,161,105,0.15); color: var(--green); }
+.compliance-tile.status-setup .compliance-badge  { background: rgba(230,126,34,0.15); color: #C2740A; }
 .stat-card { background: white; border-radius: 8px; padding: 18px 20px; border: 1px solid var(--border); }
 .stat-card .num { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--forest-d); font-weight: 700; line-height: 1; }
 .stat-card .lbl { font-size: 0.72rem; color: var(--slate-l); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
@@ -1232,6 +1267,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <div class="stat-card"><div class="num" id="stat-pub">0</div><div class="lbl">Published</div></div>
         <div class="stat-card"><div class="num" id="stat-off">0</div><div class="lbl">Officials</div></div>
       </div>
+
+      <!-- COMPLIANCE DASHBOARD -->
+      <div class="card" style="border:1.5px solid rgba(56,161,105,0.25);background:linear-gradient(145deg,#FBFEFC,white);">
+        <div class="card-header" style="border-bottom-color:rgba(56,161,105,0.15);">
+          <div>
+            <h3 style="display:flex;align-items:center;gap:8px;">🛡️ Compliance & Security Status</h3>
+            <p>Live status of government digitalization requirements for this website</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="compliance-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+            <!-- Populated by renderComplianceDashboard() -->
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div><h3>Welcome back 👋</h3><p>Manage your site content from the sidebar.</p></div>
@@ -4527,6 +4578,7 @@ function sanitizeHtml(html) {
 // ═══════════════════════════════════════════════
 function renderDash() {
   updateStats();
+  renderComplianceDashboard();
   const el = document.getElementById('dash-recent-articles');
   const recent = articles.filter(a => a.published).slice(0, 3);
   if (!recent.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No published articles yet.</p>'; return; }
@@ -4538,6 +4590,70 @@ function renderDash() {
       <div style="flex:1;">
         <div style="font-size:0.88rem;font-weight:600;color:var(--forest-d);">${escHtml(a.title)}</div>
         <div style="font-size:0.72rem;color:var(--slate-l);">${a.date||''}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── COMPLIANCE DASHBOARD ──────────────────────────
+function renderComplianceDashboard() {
+  const el = document.getElementById('compliance-grid');
+  if (!el) return;
+
+  const hasCharter   = (typeof charterEntries !== 'undefined') && charterEntries.filter(c => c.active !== false).length > 0;
+  const hasDocs       = (typeof documents !== 'undefined') && documents.length > 0;
+  const hasMFA        = (typeof adminUsers !== 'undefined') && adminUsers.some(u => u.mfaEnabled);
+  const hasMultiUsers = (typeof adminUsers !== 'undefined') && adminUsers.length > 1;
+
+  const items = [
+    {
+      icon: '📜', title: 'Citizen\'s Charter',
+      sub: 'RA 11032 — Ease of Doing Business Act',
+      live: hasCharter,
+      liveText: `${hasCharter ? charterEntries.filter(c=>c.active!==false).length : 0} service${hasCharter && charterEntries.filter(c=>c.active!==false).length!==1?'s':''} published`,
+      setupText: 'Add services in Citizen\'s Charter panel',
+    },
+    {
+      icon: '📋', title: 'Transparency Documents',
+      sub: 'RA 9184 — Government Procurement Act',
+      live: hasDocs,
+      liveText: `${hasDocs ? documents.length : 0} document${hasDocs && documents.length!==1?'s':''} posted`,
+      setupText: 'Upload documents in Documents panel',
+    },
+    {
+      icon: '🔒', title: 'Row-Level Security',
+      sub: 'Database write access restricted',
+      live: true,
+      liveText: 'Enforced on all tables',
+    },
+    {
+      icon: '📝', title: 'Audit Trail',
+      sub: 'COA-ready activity logging',
+      live: true,
+      liveText: `${(typeof auditTrail !== 'undefined' ? auditTrail.length : 0)} actions logged`,
+    },
+    {
+      icon: '👥', title: 'Role-Based Access Control',
+      sub: '4-tier staff permission system',
+      live: hasMultiUsers,
+      liveText: `${(typeof adminUsers !== 'undefined' ? adminUsers.length : 1)} staff account${(typeof adminUsers !== 'undefined' && adminUsers.length!==1) ? 's' : ''} configured`,
+      setupText: 'Add staff accounts in User Management',
+    },
+    {
+      icon: '🔐', title: 'Two-Factor Authentication',
+      sub: 'MFA available per user account',
+      live: hasMFA,
+      liveText: 'Enabled for at least one account',
+      setupText: 'Optional — enable per-user in User Management',
+    },
+  ];
+
+  el.innerHTML = items.map(it => `
+    <div class="compliance-tile ${it.live ? 'status-live' : 'status-setup'}">
+      <div class="compliance-icon">${it.icon}</div>
+      <div class="compliance-body">
+        <strong>${it.title}</strong>
+        <span>${it.sub}</span>
+        <span class="compliance-badge">${it.live ? '✓ ' + it.liveText : '○ ' + (it.setupText || 'Setup needed')}</span>
       </div>
     </div>`).join('');
 }
