@@ -31,7 +31,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 
 /* ── LOGIN ── */
 .login-screen { position: fixed; inset: 0; z-index: 999; background: var(--forest-d); display: flex; align-items: center; justify-content: center; }
-.login-box { background: white; border-radius: 12px; padding: 48px 40px; width: 360px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); }
+.login-box { background: white; border-radius: 12px; padding: 48px 40px; width: 360px; max-width: 92vw; box-shadow: 0 24px 60px rgba(0,0,0,0.3); }
 .login-logo { width: 54px; height: 54px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 20px; }
 .login-box h2 { font-family: 'Playfair Display', serif; font-size: 1.35rem; text-align: center; color: var(--forest-d); margin-bottom: 6px; }
 .login-box p { font-size: 0.8rem; color: var(--slate-l); text-align: center; margin-bottom: 28px; }
@@ -112,9 +112,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
   /* Form rows */
   .form-row { grid-template-columns: 1fr; }
 
-  /* Modals go full screen on mobile */
+  /* Modals go full screen on mobile — !important needed to beat inline width="" styles */
   .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal { width: 100vw; max-width: 100vw; border-radius: 16px 16px 0 0; max-height: 95vh; overflow-y: auto; }
+  .modal { width: 100vw !important; max-width: 100vw !important; border-radius: 16px 16px 0 0; max-height: 95vh; overflow-y: auto; }
   .modal-header { border-radius: 16px 16px 0 0; }
 
   /* Resize modal */
@@ -157,6 +157,10 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 
   /* Toast goes to bottom center */
   .toast { left: 16px; right: 16px; bottom: 16px; }
+
+  /* User management cards — stack instead of cramming into one row */
+  .user-card { flex-wrap: wrap; row-gap: 8px; }
+  .user-info { flex-basis: 100%; order: 1; }
 }
 
 @media (max-width: 480px) {
@@ -168,6 +172,8 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
   .cover-upload-area img { height: 150px; }
   .resize-modal-footer { flex-direction: column; gap: 8px; align-items: stretch; }
   .resize-modal-footer > div { justify-content: center; }
+  .login-box { padding: 36px 22px; }
+  .login-box h2 { font-size: 1.15rem; }
 }
 
 /* ── MAIN ── */
@@ -949,6 +955,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
   font-weight: 700; border: 2px solid var(--border); border-radius: 8px;
   font-family: 'Inter', sans-serif; outline: none; color: var(--forest-d);
   transition: border-color 0.2s;
+}
+@media (max-width: 400px) {
+  .mfa-digits { gap: 5px; }
+  .mfa-digit { width: 38px; height: 46px; font-size: 1.2rem; }
+}
+@media (max-width: 340px) {
+  .mfa-digits { gap: 4px; }
+  .mfa-digit { width: 32px; height: 42px; font-size: 1.05rem; }
 }
 .mfa-digit:focus { border-color: var(--gold); }
 .login-step-label {
