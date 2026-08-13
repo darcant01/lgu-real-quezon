@@ -1435,7 +1435,10 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
       <div class="card">
         <div class="card-header">
           <div><h3>📜 Citizen's Charter</h3><p>RA 11032-compliant service listings — requirements, steps, processing time, and fees for every government transaction.</p></div>
-          <button class="btn btn-gold" onclick="openCharterEditModal()">+ Add Service</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="printCharter()">🖨️ Print / Export PDF</button>
+            <button class="btn btn-gold" onclick="openCharterEditModal()">+ Add Service</button>
+          </div>
         </div>
         <div class="card-body" id="charter-editor-list">
           <p style="color:var(--slate-l);font-size:0.85rem;">No services published yet. Click + Add Service to create your first Citizen's Charter entry.</p>
@@ -3690,6 +3693,115 @@ async function deleteCharterEntry(i) {
   auditLog('delete', `Citizen's Charter service deleted: "${title}"`, _currentUser);
   renderCharterList();
   showToast('Service deleted');
+}
+
+// ── PRINT / PDF EXPORT ────────────────────────────
+// RA 11032 requires LGUs to post a physical copy of the Citizen's Charter
+// in a conspicuous place, in addition to the digital version. This opens
+// a print-ready document — use the browser's "Save as PDF" or print directly.
+function printCharter() {
+  const active = charterEntries.filter(c => c.active !== false);
+  if (!active.length) return showToast('No published services to export yet', 'error');
+
+  const muniName  = (settings && settings.name)     || "Municipality of Real";
+  const province  = (settings && settings.province) || "Quezon Province, Philippines";
+  const mayorName = (settings && settings.mayor)     || '';
+  const today = new Date().toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+
+  // Group by category for a cleaner printed layout
+  const byCategory = {};
+  active.forEach(c => {
+    const cat = c.category || 'General';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(c);
+  });
+
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  let bodyHtml = '';
+  Object.keys(byCategory).sort().forEach(cat => {
+    bodyHtml += `<h2 class="cp-category">${esc(cat)}</h2>`;
+    byCategory[cat].forEach(c => {
+      bodyHtml += `
+        <div class="cp-service">
+          <h3>${esc(c.title)}</h3>
+          <table class="cp-meta-table">
+            <tr><td class="cp-label">Office / Division:</td><td>${esc(c.office||'—')}</td></tr>
+            <tr><td class="cp-label">Who May Avail:</td><td>${esc(c.clients||'General Public')}</td></tr>
+            <tr><td class="cp-label">Total Processing Time:</td><td>${esc(c.totalDuration||'—')}</td></tr>
+            <tr><td class="cp-label">Total Fee:</td><td>${esc(c.totalFee||'Free')}</td></tr>
+          </table>
+
+          <div class="cp-subhead">Requirements</div>
+          <ul class="cp-reqs">
+            ${(c.requirements||[]).map(r => `<li>${esc(r)}</li>`).join('') || '<li><em>None specified</em></li>'}
+          </ul>
+
+          <div class="cp-subhead">Client Steps</div>
+          <table class="cp-steps-table">
+            <thead><tr><th style="width:28px;">#</th><th>Step</th><th style="width:110px;">Duration</th><th style="width:110px;">Fee</th></tr></thead>
+            <tbody>
+              ${(c.steps||[]).map((s,i) => `<tr><td>${i+1}</td><td>${esc(s.action)}</td><td>${esc(s.duration||'—')}</td><td>${esc(s.fee||'Free')}</td></tr>`).join('') || '<tr><td colspan="4"><em>No steps specified</em></td></tr>'}
+            </tbody>
+          </table>
+        </div>`;
+    });
+  });
+
+  const doc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Citizen's Charter — ${esc(muniName)}</title>
+<style>
+  @page { size: A4; margin: 20mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; line-height: 1.5; margin: 0; }
+  .cp-header { text-align: center; border-bottom: 3px double #1A3C2E; padding-bottom: 16px; margin-bottom: 28px; }
+  .cp-header .rep { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #555; margin-bottom: 4px; }
+  .cp-header .muni { font-size: 22px; font-weight: bold; color: #0F2419; margin-bottom: 2px; }
+  .cp-header .prov { font-size: 13px; color: #555; margin-bottom: 14px; }
+  .cp-header .title { font-size: 26px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #0F2419; margin-top: 10px; }
+  .cp-header .subtitle { font-size: 12px; color: #777; margin-top: 4px; }
+  .cp-category { font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #C9A227; background: #0F2419; padding: 8px 14px; margin: 30px 0 14px; page-break-after: avoid; }
+  .cp-service { margin-bottom: 26px; page-break-inside: avoid; border: 1px solid #ccc; border-radius: 4px; padding: 16px 18px; }
+  .cp-service h3 { font-size: 15px; margin: 0 0 10px; color: #0F2419; }
+  .cp-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+  .cp-meta-table td { padding: 3px 0; vertical-align: top; }
+  .cp-label { font-weight: bold; width: 170px; color: #444; }
+  .cp-subhead { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #C9A227; border-bottom: 1px solid #eee; padding-bottom: 3px; margin: 12px 0 6px; }
+  .cp-reqs { margin: 0 0 4px; padding-left: 20px; font-size: 12.5px; }
+  .cp-reqs li { margin-bottom: 3px; }
+  .cp-steps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .cp-steps-table th { text-align: left; background: #f2f2f2; padding: 5px 8px; border: 1px solid #ddd; }
+  .cp-steps-table td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: top; }
+  .cp-footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid #ccc; font-size: 10.5px; color: #777; text-align: center; }
+  @media print { .cp-service { break-inside: avoid; } }
+</style>
+</head>
+<body>
+  <div class="cp-header">
+    <div class="rep">Republic of the Philippines</div>
+    <div class="muni">${esc(muniName)}</div>
+    <div class="prov">${esc(province)}</div>
+    <div class="title">Citizen's Charter</div>
+    <div class="subtitle">In compliance with Republic Act No. 11032 — Ease of Doing Business and Efficient Government Service Delivery Act of 2018</div>
+  </div>
+
+  ${bodyHtml}
+
+  <div class="cp-footer">
+    Generated on ${esc(today)}${mayorName ? ' · Approved by ' + esc(mayorName) : ''} · This document reflects services published on the official municipal website.
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(doc);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
+
+  auditLog('save', `Citizen's Charter exported for print (${active.length} services)`, _currentUser);
 }
 
 // ═══════════════════════════════════════════════
