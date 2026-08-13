@@ -1288,6 +1288,9 @@
   }
 </style>
 
+<!-- Favicon — replaced dynamically if a custom one is set in Admin > Settings -->
+<link rel="icon" id="site-favicon-link" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+
 <!-- Supabase — live database connection for LGU Real -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
@@ -2154,7 +2157,7 @@
   }
 
   // Image-only keys that live in localStorage (not shared storage)
-  const LOCAL_IMG_KEYS = new Set(['lgu_hero_slides','lgu_gallery','lgu_logo_data','lgu_official_photos']);
+  const LOCAL_IMG_KEYS = new Set(['lgu_hero_slides','lgu_gallery','lgu_logo_data','lgu_official_photos','lgu_favicon_data']);
 
   async function safeGet(key) {
     // Image data lives in localStorage
@@ -2423,6 +2426,18 @@
 
   // ── BRANDING (LOGO + SITE NAME) ───────────────────
   async function loadBranding() {
+    // Favicon is independent of lgu_settings — apply it first, regardless of settings state
+    try {
+      const fd = localStorage.getItem('lgu_favicon_data');
+      if (fd) {
+        const p = JSON.parse(fd);
+        if (p.favicon) {
+          const link = document.getElementById('site-favicon-link');
+          if (link) link.href = p.favicon;
+        }
+      }
+    } catch {}
+
     const s = await safeGet('lgu_settings');
     if (!s) return;
 

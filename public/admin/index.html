@@ -1134,6 +1134,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 .resize-file-info strong { color: var(--forest-d); }
 </style>
 
+<!-- Favicon — replaced dynamically if a custom one is set below in Settings -->
+<link rel="icon" id="site-favicon-link" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+
 <!-- Supabase — live database connection for LGU Real -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
@@ -1677,6 +1680,52 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 
               <div style="padding:12px 14px;background:rgba(26,60,46,0.06);border-radius:6px;font-size:0.78rem;color:var(--slate-l);line-height:1.6;">
                 💡 <strong>Tips:</strong> Use a PNG with a transparent background for the cleanest look. The municipal seal (circular, on transparent) works best. Minimum 200×200px recommended.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAVICON SETTINGS -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div><h3>🔖 Favicon</h3><p>The small icon shown in browser tabs, bookmarks, and mobile home screens.</p></div>
+          <button class="btn btn-gold" onclick="saveFavicon()">💾 Save Favicon</button>
+        </div>
+        <div class="card-body">
+          <div class="logo-upload-section">
+
+            <!-- Live preview -->
+            <div class="logo-preview-wrap">
+              <div style="width:32px;height:32px;border-radius:4px;background:white;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;" id="favicon-tab-preview">🏛️</div>
+              <div class="logo-preview-label">Browser Tab</div>
+            </div>
+            <div class="logo-preview-wrap">
+              <div class="logo-preview-sq" id="favicon-sq-preview" style="width:60px;height:60px;">🏛️</div>
+              <div class="logo-preview-label">Home Screen Icon</div>
+            </div>
+
+            <!-- Upload controls -->
+            <div class="logo-upload-actions">
+              <div>
+                <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--slate-l);margin-bottom:8px;">Upload Favicon Image</div>
+                <div class="logo-upload-zone" onclick="document.getElementById('favicon-file-input').click()">
+                  <div style="font-size:28px;">🔖</div>
+                  <p><strong>Click to upload</strong> a small square icon<br>Square PNG recommended · Max 2 MB</p>
+                </div>
+                <input type="file" id="favicon-file-input" accept="image/*" onchange="handleFaviconUpload(event)">
+              </div>
+
+              <div id="favicon-current-wrap" style="display:none;">
+                <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--slate-l);margin-bottom:8px;">Current Favicon</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <img id="favicon-current-thumb" src="" style="width:32px;height:32px;border-radius:4px;border:2px solid var(--gold);object-fit:contain;background:white;" alt="">
+                  <button class="btn btn-danger btn-sm" onclick="removeFavicon()">✕ Remove Favicon</button>
+                </div>
+              </div>
+
+              <div style="padding:12px 14px;background:rgba(26,60,46,0.06);border-radius:6px;font-size:0.78rem;color:var(--slate-l);line-height:1.6;">
+                💡 <strong>Tips:</strong> Favicons render very small (often 16×16px), so simple, high-contrast icons work best — the full municipal seal may lose detail. A bold letter or simplified emblem often reads more clearly than the complete logo.
               </div>
             </div>
           </div>
@@ -2765,7 +2814,7 @@ document.addEventListener('click', e => {
 // ═══════════════════════════════════════════════
 
 const IMAGE_KEYS = new Set([
-  'lgu_hero_slides', 'lgu_gallery', 'lgu_logo_data', 'lgu_official_photos'
+  'lgu_hero_slides', 'lgu_gallery', 'lgu_logo_data', 'lgu_official_photos', 'lgu_favicon_data'
 ]);
 // Article images stored separately per article id: lgu_art_img_<id>
 
@@ -4688,6 +4737,16 @@ function applySettings() {
     document.getElementById('logo-current-wrap').style.display = 'block';
     document.getElementById('logo-current-thumb').src = logoStore.logo;
   }
+
+  // Restore favicon from localStorage
+  const faviconStore = localGet('lgu_favicon_data');
+  if (faviconStore && faviconStore.favicon) {
+    _faviconData = faviconStore.favicon;
+    _refreshFaviconPreviews();
+    document.getElementById('favicon-current-wrap').style.display = 'block';
+    document.getElementById('favicon-current-thumb').src = faviconStore.favicon;
+    applyFaviconToPage(faviconStore.favicon);
+  }
 }
 
 async function saveSettings() {
@@ -4784,6 +4843,71 @@ async function saveLogo() {
   }
 }
 
+// ── Favicon upload ───────────────────────────────
+let _faviconData = ''; // base64 data URL of current favicon
+
+function handleFaviconUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!checkFileSize(file, 'logo')) { event.target.value = ''; return; } // reuse 2MB "logo" limit tier
+  const reader = new FileReader();
+  reader.onload = e => {
+    openResizeModal(e.target.result, () => {
+      // Auto-select the smallest square preset — favicons should stay tiny
+      const btn = Array.from(document.querySelectorAll('.preset-btn'))
+        .find(b => b.textContent.includes('Square Thumbnail'));
+      if (btn) btn.click();
+    }, (dataUrl, w, h) => {
+      _faviconData = dataUrl;
+      _refreshFaviconPreviews();
+      document.getElementById('favicon-current-wrap').style.display = 'block';
+      document.getElementById('favicon-current-thumb').src = dataUrl;
+      showToast(`Favicon uploaded — ${w}×${h}px ✓`);
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function _refreshFaviconPreviews() {
+  const tabEl = document.getElementById('favicon-tab-preview');
+  const sqEl  = document.getElementById('favicon-sq-preview');
+  if (!_faviconData) { tabEl.innerHTML = '🏛️'; sqEl.innerHTML = '🏛️'; return; }
+  tabEl.innerHTML = `<img src="${_faviconData}" alt="Favicon" style="width:100%;height:100%;object-fit:contain;">`;
+  sqEl.innerHTML  = `<img src="${_faviconData}" alt="Favicon" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">`;
+}
+
+function removeFavicon() {
+  if (!confirm('Remove the current favicon? The default browser icon will be used.')) return;
+  _faviconData = '';
+  document.getElementById('favicon-tab-preview').innerHTML = '🏛️';
+  document.getElementById('favicon-sq-preview').innerHTML  = '🏛️';
+  document.getElementById('favicon-current-wrap').style.display = 'none';
+  showToast('Favicon removed — save to apply');
+}
+
+async function saveFavicon() {
+  if (!_faviconData) return showToast('No favicon uploaded yet', 'error');
+  // Favicon image → localStorage, same tier as logo (small image, not article-sized)
+  localSet('lgu_favicon_data', { favicon: _faviconData });
+  showToast('Favicon saved and published ✓');
+  auditLog('upload', `Site favicon updated (${fileSizeLabel(_faviconData.length * 0.75)})`, _currentUser);
+  // Apply immediately to this admin tab too, for instant feedback
+  applyFaviconToPage(_faviconData);
+}
+
+// Apply a favicon data URL to the current page's <head>
+function applyFaviconToPage(dataUrl) {
+  if (!dataUrl) return;
+  let link = document.querySelector("link[rel~='icon']");
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = dataUrl;
+}
+
 // ── STORAGE MANAGER ───────────────────────────
 function renderStorageManager() {
   const el = document.getElementById('storage-manager-body');
@@ -4797,6 +4921,7 @@ function renderStorageManager() {
     'lgu_gallery':          '🖼️ Photo Gallery Images',
     'lgu_official_photos':  '🏛️ Officials Photos',
     'lgu_logo_data':        '🔵 Site Logo',
+    'lgu_favicon_data':     '🔖 Favicon',
   };
 
   el.innerHTML = `
