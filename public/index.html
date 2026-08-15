@@ -1982,15 +1982,12 @@
     document.body.style.overflow = 'hidden';
     // Apply logo to modal seal if set
     try {
-      const ld = localStorage.getItem('lgu_logo_data');
-      if (ld) {
-        const p = JSON.parse(ld);
-        if (p.logo) {
-          const seal = document.getElementById('admin-modal-seal');
-          seal.innerHTML = `<img src="${p.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:50%;" alt="Logo">`;
-          seal.style.background = 'transparent';
-          seal.style.padding = '4px';
-        }
+      const logoUrl = (window._lguSettings && window._lguSettings.logo) || '';
+      if (logoUrl) {
+        const seal = document.getElementById('admin-modal-seal');
+        seal.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:50%;" alt="Logo">`;
+        seal.style.background = 'transparent';
+        seal.style.padding = '4px';
       }
     } catch {}
     // Auto-focus username after animation
@@ -2170,7 +2167,10 @@
   }
 
   // Image-only keys that live in localStorage (not shared storage)
-  const LOCAL_IMG_KEYS = new Set(['lgu_gallery','lgu_logo_data','lgu_official_photos','lgu_favicon_data']);
+  const LOCAL_IMG_KEYS = new Set([]);
+  // Hero slides, gallery, official photos, logo, and favicon all moved to
+  // Supabase Storage public URLs (stored in shared lgu_kv / lgu_settings),
+  // so nothing needs to be read from localStorage here anymore.
 
   async function safeGet(key) {
     // Image data lives in localStorage
@@ -2491,10 +2491,8 @@
   async function loadOfficials() {
     const meta = await safeGet('lgu_officials');
     if (!meta || !meta.length) return; // keep static fallback
-    // Rehydrate photos from localStorage (images stored locally, not in shared storage)
-    let photos = {};
-    try { const p = localStorage.getItem('lgu_official_photos'); if (p) photos = JSON.parse(p); } catch {}
-    const officials = meta.map((o, i) => ({ ...o, photo: photos[i] || '' }));
+    // Photos are now stored as public URLs directly on each official record
+    const officials = meta;
     const grid = document.getElementById('officials-grid');
     grid.innerHTML = officials.map((o, i) => {
       const isMayor = o.role && o.role.toLowerCase().includes('mayor') && !o.role.toLowerCase().includes('vice');
@@ -2528,20 +2526,15 @@
 
   // ── BRANDING (LOGO + SITE NAME) ───────────────────
   async function loadBranding() {
-    // Favicon is independent of lgu_settings — apply it first, regardless of settings state
-    try {
-      const fd = localStorage.getItem('lgu_favicon_data');
-      if (fd) {
-        const p = JSON.parse(fd);
-        if (p.favicon) {
-          const link = document.getElementById('site-favicon-link');
-          if (link) link.href = p.favicon;
-        }
-      }
-    } catch {}
-
     const s = await safeGet('lgu_settings');
     if (!s) return;
+    window._lguSettings = s;
+
+    // Favicon — now a public Storage URL stored directly in settings
+    if (s.favicon) {
+      const link = document.getElementById('site-favicon-link');
+      if (link) link.href = s.favicon;
+    }
 
     // Site name & province
     if (s.name) {
@@ -2555,12 +2548,7 @@
     // Page title
     if (s.name) document.title = s.name + (s.province ? ' — ' + s.province : '');
 
-    // Logo image — stored in localStorage (not shared storage)
-    let logoSrc = '';
-    try { const ld = localStorage.getItem('lgu_logo_data'); if (ld) { const p=JSON.parse(ld); logoSrc=p.logo||''; } } catch {}
-    if (logoSrc) {
-      s.logo = logoSrc;
-    }
+    // Logo image — now a public Storage URL stored directly in settings
     if (s.logo) {
       ['site-logo-nav', 'site-logo-footer'].forEach(id => {
         const el = document.getElementById(id);

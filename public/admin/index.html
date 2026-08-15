@@ -2837,28 +2837,30 @@ document.addEventListener('click', e => {
 });
 
 // ═══════════════════════════════════════════════
-//  STORAGE — DUAL LAYER
-//  • Shared (Supabase lgu_kv table): text/metadata only — tiny payloads
-//  • Local  (localStorage):          images/binary — large payloads
-//
-//  Keys that go to localStorage (images):
-//    lgu_hero_slides, lgu_gallery, lgu_logo_data,
-//    lgu_article_images_<id>, lgu_official_photos
-//  Everything else → shared storage (text only, strips image fields)
+//  STORAGE — TWO LAYERS
+//  • Shared (Supabase lgu_kv table): text/metadata, and now also public
+//    image URLs (small strings) — Storage handles the actual bytes.
+//  • Local (localStorage): only per-article rich-text images
+//    (lgu_art_img_<id>) — full article bodies are large and read/write
+//    heavy, so those stay local for now.
+//  • Supabase Storage (bucket: lgu-images): actual image bytes for hero
+//    slides, gallery, official photos, and site logo/favicon — uploaded via
+//    uploadDataUrlToStorage() below, with just the public URL saved to
+//    lgu_kv. This is what makes images visible to every visitor, not just
+//    the browser that uploaded them.
 // ═══════════════════════════════════════════════
 
-const IMAGE_KEYS = new Set([
-  'lgu_gallery', 'lgu_logo_data', 'lgu_official_photos', 'lgu_favicon_data'
-]);
+const IMAGE_KEYS = new Set([]);
 // Article images stored separately per article id: lgu_art_img_<id>
-// NOTE: lgu_hero_slides used to live here (localStorage-only), which meant hero
-// images were only ever visible on the same browser/device that uploaded them —
-// never to real site visitors. It now uploads to Supabase Storage instead; see
-// uploadDataUrlToStorage() and handleSlideUpload() below.
+//   - hero slides: URL lives on each slide object in lgu_hero_slides
+//   - gallery: URL lives on each photo object in lgu_gallery
+//   - official photos: URL lives on each official's `photo` field in lgu_officials
+//   - logo/favicon: URLs live in lgu_settings.logo / lgu_settings.favicon
+// See uploadDataUrlToStorage() below.
 
 // Upload a base64 data URL to Supabase Storage and return its public URL.
 // Used for content that must be visible to every visitor (not just the
-// uploading browser) — currently: hero slideshow images.
+// uploading browser) — hero slides, gallery, official photos, logo, favicon.
 async function uploadDataUrlToStorage(dataUrl, bucket, folder = '') {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
@@ -4321,11 +4323,18 @@ function handleGalleryUpload(event) {
       openResizeModal(e.target.result, () => {
         const btn = Array.from(document.querySelectorAll('.preset-btn')).find(b=>b.textContent.includes('Full Width (body)'));
         if (btn) btn.click();
-      }, (dataUrl) => {
-        galleryPhotos.push({ image: dataUrl, caption: '' });
-        renderGalleryEditor();
-        auditLog('upload', `Gallery photo uploaded: ${file.name} (${fileSizeLabel(file.size)})`, _currentUser);
-        showToast('Photo added ✓');
+      }, async (dataUrl) => {
+        showToast('Uploading photo…');
+        try {
+          const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'gallery/');
+          galleryPhotos.push({ image: publicUrl, caption: '' });
+          renderGalleryEditor();
+          auditLog('upload', `Gallery photo uploaded: ${file.name} (${fileSizeLabel(file.size)})`, _currentUser);
+          showToast('Photo added ✓ (visible to all visitors)');
+        } catch (err) {
+          console.error('[gallery upload]', err);
+          showToast('Upload failed — check your connection and try again', 'error');
+        }
       });
     };
     reader.readAsDataURL(file);
@@ -4340,12 +4349,19 @@ function moveGallery(i, dir) {
 }
 function deleteGallery(i) {
   if(!confirm('Remove this photo?'))return;
+  const removed = galleryPhotos[i];
   galleryPhotos.splice(i,1); renderGalleryEditor(); showToast('Photo removed');
+  if (removed?.image && removed.image.includes('/lgu-images/')) {
+    try {
+      const path = removed.image.split('/lgu-images/')[1];
+      if (path) _sb.storage.from('lgu-images').remove([decodeURIComponent(path)]);
+    } catch {}
+  }
 }
 async function saveGallery() {
   const ok = await dbSet('lgu_gallery', galleryPhotos);
   if (ok) showToast(`Gallery saved — ${galleryPhotos.length} photo${galleryPhotos.length!==1?'s':''} ✓`);
-  else showToast('Save failed — try reducing image quality in the resize tool','error');
+  else showToast('Save failed','error');
 }
 
 // ═══════════════════════════════════════════════
@@ -4513,9 +4529,7 @@ const ROLE_OPTIONS = [
 ];
 
 async function loadOfficialsAdmin() {
-  const meta   = await sharedGet('lgu_officials') || [];
-  const photos = localGet('lgu_official_photos')  || {};
-  officials = meta.map((o, i) => ({ ...o, photo: photos[i] || '' }));
+  officials = await sharedGet('lgu_officials') || [];
   renderOfficialsGrid();
 }
 
@@ -4650,10 +4664,17 @@ function handleOfficialPhotoUpload(event) {
       const btn = Array.from(document.querySelectorAll('.preset-btn'))
         .find(b => b.textContent.includes('Square Thumbnail'));
       if (btn) btn.click();
-    }, (dataUrl, w, h) => {
-      officials[idx].photo = dataUrl;
-      renderOfficialsGrid();
-      showToast(`Photo set — ${w}×${h}px ✓`);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading photo…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'officials/');
+        officials[idx].photo = publicUrl;
+        renderOfficialsGrid();
+        showToast(`Photo set — ${w}×${h}px ✓ (visible to all visitors)`);
+      } catch (err) {
+        console.error('[official photo upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
     });
   };
   reader.readAsDataURL(file);
@@ -4661,14 +4682,7 @@ function handleOfficialPhotoUpload(event) {
 }
 
 async function saveOfficials() {
-  const photos   = {};
-  const metaOnly = officials.map((o, i) => {
-    if (o.photo) photos[i] = o.photo;
-    const { photo: _p, ...m } = o;
-    return m;
-  });
-  localSet('lgu_official_photos', photos);
-  const ok = await sharedSet('lgu_officials', metaOnly);
+  const ok = await sharedSet('lgu_officials', officials);
   if (ok) { auditLog('save', `Officials updated — ${officials.length} officials`, _currentUser); showToast('Officials saved ✓'); }
   else showToast('Save failed — check Settings > Storage Manager', 'error');
 }
@@ -4993,25 +5007,23 @@ function applySettings() {
   if (settings.phone)    document.getElementById('set-phone').value    = settings.phone;
   if (settings.email)    document.getElementById('set-email').value    = settings.email;
 
-  // Restore logo from localStorage (image not stored in shared settings)
-  const logoStore = localGet('lgu_logo_data');
-  if (logoStore && logoStore.logo) {
-    _logoData  = logoStore.logo;
-    _logoShape = logoStore.logoShape || settings.logoShape || 'circle';
+  // Restore logo — a public Storage URL stored directly in shared settings
+  if (settings.logo) {
+    _logoData  = settings.logo;
+    _logoShape = settings.logoShape || 'circle';
     setLogoShape(_logoShape, true);
     _refreshLogoPreviews();
     document.getElementById('logo-current-wrap').style.display = 'block';
-    document.getElementById('logo-current-thumb').src = logoStore.logo;
+    document.getElementById('logo-current-thumb').src = settings.logo;
   }
 
-  // Restore favicon from localStorage
-  const faviconStore = localGet('lgu_favicon_data');
-  if (faviconStore && faviconStore.favicon) {
-    _faviconData = faviconStore.favicon;
+  // Restore favicon — a public Storage URL stored directly in shared settings
+  if (settings.favicon) {
+    _faviconData = settings.favicon;
     _refreshFaviconPreviews();
     document.getElementById('favicon-current-wrap').style.display = 'block';
-    document.getElementById('favicon-current-thumb').src = faviconStore.favicon;
-    applyFaviconToPage(faviconStore.favicon);
+    document.getElementById('favicon-current-thumb').src = settings.favicon;
+    applyFaviconToPage(settings.favicon);
   }
 }
 
@@ -5042,12 +5054,19 @@ function handleLogoUpload(event) {
       const btn = Array.from(document.querySelectorAll('.preset-btn'))
         .find(b => b.textContent.includes('Square Thumbnail'));
       if (btn) btn.click();
-    }, (dataUrl, w, h) => {
-      _logoData = dataUrl;
-      _refreshLogoPreviews();
-      document.getElementById('logo-current-wrap').style.display = 'block';
-      document.getElementById('logo-current-thumb').src = dataUrl;
-      showToast(`Logo uploaded — ${w}×${h}px ✓`);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading logo…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'branding/');
+        _logoData = publicUrl;
+        _refreshLogoPreviews();
+        document.getElementById('logo-current-wrap').style.display = 'block';
+        document.getElementById('logo-current-thumb').src = publicUrl;
+        showToast(`Logo uploaded — ${w}×${h}px ✓ (click Save to publish)`);
+      } catch (err) {
+        console.error('[logo upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
     });
   };
   reader.readAsDataURL(file);
@@ -5091,9 +5110,8 @@ function removeLogo() {
 
 async function saveLogo() {
   if (!_logoData) return showToast('No logo uploaded yet', 'error');
-  // Logo image → localStorage (too large for shared storage)
-  localSet('lgu_logo_data', { logo: _logoData, logoShape: _logoShape });
-  settings = { ...settings, logoShape: _logoShape };  // don't put image in shared
+  // Logo is now a public Storage URL — small enough to store directly in shared settings
+  settings = { ...settings, logo: _logoData, logoShape: _logoShape };
   const ok = await sharedSet('lgu_settings', settings);
   if (ok) {
     // Update admin sidebar seal too
@@ -5103,14 +5121,14 @@ async function saveLogo() {
       seal.style.background = 'transparent';
     }
     showToast('Logo saved and published ✓');
-    auditLog('upload', `Site logo updated (${fileSizeLabel(_logoData.length * 0.75)})`, _currentUser);
+    auditLog('upload', `Site logo updated`, _currentUser);
   } else {
-    showToast('Save failed — logo may be too large. Try lower quality.', 'error');
+    showToast('Save failed — check your connection.', 'error');
   }
 }
 
 // ── Favicon upload ───────────────────────────────
-let _faviconData = ''; // base64 data URL of current favicon
+let _faviconData = ''; // public Storage URL of current favicon
 
 function handleFaviconUpload(event) {
   const file = event.target.files[0];
@@ -5123,12 +5141,19 @@ function handleFaviconUpload(event) {
       const btn = Array.from(document.querySelectorAll('.preset-btn'))
         .find(b => b.textContent.includes('Square Thumbnail'));
       if (btn) btn.click();
-    }, (dataUrl, w, h) => {
-      _faviconData = dataUrl;
-      _refreshFaviconPreviews();
-      document.getElementById('favicon-current-wrap').style.display = 'block';
-      document.getElementById('favicon-current-thumb').src = dataUrl;
-      showToast(`Favicon uploaded — ${w}×${h}px ✓`);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading favicon…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'branding/');
+        _faviconData = publicUrl;
+        _refreshFaviconPreviews();
+        document.getElementById('favicon-current-wrap').style.display = 'block';
+        document.getElementById('favicon-current-thumb').src = publicUrl;
+        showToast(`Favicon uploaded — ${w}×${h}px ✓ (click Save to publish)`);
+      } catch (err) {
+        console.error('[favicon upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
     });
   };
   reader.readAsDataURL(file);
@@ -5154,12 +5179,16 @@ function removeFavicon() {
 
 async function saveFavicon() {
   if (!_faviconData) return showToast('No favicon uploaded yet', 'error');
-  // Favicon image → localStorage, same tier as logo (small image, not article-sized)
-  localSet('lgu_favicon_data', { favicon: _faviconData });
-  showToast('Favicon saved and published ✓');
-  auditLog('upload', `Site favicon updated (${fileSizeLabel(_faviconData.length * 0.75)})`, _currentUser);
-  // Apply immediately to this admin tab too, for instant feedback
-  applyFaviconToPage(_faviconData);
+  // Favicon is now a public Storage URL — small enough to store directly in shared settings
+  settings = { ...settings, favicon: _faviconData };
+  const ok = await sharedSet('lgu_settings', settings);
+  if (ok) {
+    showToast('Favicon saved and published ✓');
+    auditLog('upload', `Site favicon updated`, _currentUser);
+    applyFaviconToPage(_faviconData);
+  } else {
+    showToast('Save failed — check your connection.', 'error');
+  }
 }
 
 // Apply a favicon data URL to the current page's <head>
