@@ -1877,6 +1877,20 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <div class="form-hint">Shown on the news card grid. Keep it under 150 characters.</div>
       </div>
 
+      <!-- Video / social embeds -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>▶️ YouTube Video Link</label>
+          <input type="text" id="art-youtube" placeholder="https://www.youtube.com/watch?v=...">
+          <div class="form-hint">Paste any YouTube video or Shorts URL. It'll appear embedded at the end of the article.</div>
+        </div>
+        <div class="form-group">
+          <label>📘 Facebook Post / Video Link</label>
+          <input type="text" id="art-facebook" placeholder="https://www.facebook.com/RealQuezonLGU/posts/...">
+          <div class="form-hint">Paste a public Facebook post or video URL from the LGU's official Page.</div>
+        </div>
+      </div>
+
       <!-- Rich body editor -->
       <div class="form-group">
         <label>Full Article Body</label>
@@ -4684,6 +4698,8 @@ function renderArticles() {
           <span style="font-size:0.65rem;padding:2px 8px;border-radius:20px;background:${a.published?'rgba(56,161,105,0.1)':'rgba(229,62,62,0.08)'};color:${a.published?'var(--green)':'var(--red)'};">
             ${a.published ? 'Published' : 'Draft'}
           </span>
+          ${a.youtube  ? `<span title="Has YouTube video" style="font-size:0.75rem;">▶️</span>` : ''}
+          ${a.facebook ? `<span title="Has Facebook link" style="font-size:0.75rem;">📘</span>` : ''}
         </div>
       </div>
       <div class="article-actions">
@@ -4704,6 +4720,8 @@ function openArticleModal(editIdx = null) {
   document.getElementById('art-tag').value     = a.tag     || 'news';
   document.getElementById('art-summary').value = a.summary || '';
   document.getElementById('art-date').value    = a.date    || new Date().toISOString().slice(0,10);
+  document.getElementById('art-youtube').value  = a.youtube  || '';
+  document.getElementById('art-facebook').value = a.facebook || '';
 
   // Cover image
   const coverData = a.cover || '';
@@ -4755,6 +4773,8 @@ async function saveArticle() {
     tag:       document.getElementById('art-tag').value,
     summary:   document.getElementById('art-summary').value.trim(),
     date:      document.getElementById('art-date').value,
+    youtube:   document.getElementById('art-youtube').value.trim(),
+    facebook:  document.getElementById('art-facebook').value.trim(),
     published: document.getElementById('art-published-toggle').classList.contains('on'),
     updatedAt: new Date().toISOString(),
     hasImages: !!(cover || bodyHtml.includes('<img')),
