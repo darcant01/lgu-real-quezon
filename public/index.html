@@ -506,6 +506,18 @@
   .mobile-bottom-nav a .bn-icon { font-size: 20px; display: block; }
   .mobile-bottom-nav a:hover, .mobile-bottom-nav a.active { color: var(--gold); }
 
+  /* Nav switches to the hamburger menu earlier than the rest of the mobile
+     layout. With 10 nav items (2 of them dropdowns) the desktop row needs
+     roughly 1100-1150px to fit without wrapping or silently overflowing
+     off-screen — waiting until the general 900px content breakpoint left a
+     dead zone (~900-1150px window width) where extra nav links vanished
+     with no scrollbar and no visual indication anything was missing. */
+  @media (max-width: 1150px) {
+    .nav-links        { display: none; }
+    .nav-hamburger    { display: flex; }
+    .mobile-nav-drawer { display: flex; }
+  }
+
   @media (max-width: 900px) {
     /* Nav */
     .nav-links        { display: none; }
