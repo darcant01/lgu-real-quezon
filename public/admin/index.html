@@ -2839,19 +2839,19 @@ document.addEventListener('click', e => {
 // ═══════════════════════════════════════════════
 //  STORAGE — TWO LAYERS
 //  • Shared (Supabase lgu_kv table): text/metadata, and now also public
-//    image URLs (small strings) — Storage handles the actual bytes.
-//  • Local (localStorage): only per-article rich-text images
-//    (lgu_art_img_<id>) — full article bodies are large and read/write
-//    heavy, so those stay local for now.
+//    image URLs (small strings) — Storage handles the actual bytes. This
+//    now includes full article records (cover + bodyHtml), since images
+//    inside them are just URLs, not embedded base64 anymore.
 //  • Supabase Storage (bucket: lgu-images): actual image bytes for hero
-//    slides, gallery, official photos, and site logo/favicon — uploaded via
-//    uploadDataUrlToStorage() below, with just the public URL saved to
-//    lgu_kv. This is what makes images visible to every visitor, not just
-//    the browser that uploaded them.
+//    slides, gallery, official photos, site logo/favicon, and article
+//    covers/inline images — uploaded via uploadDataUrlToStorage() below,
+//    with just the public URL saved to lgu_kv. This is what makes images
+//    visible to every visitor, not just the browser that uploaded them.
 // ═══════════════════════════════════════════════
 
 const IMAGE_KEYS = new Set([]);
-// Article images stored separately per article id: lgu_art_img_<id>
+// lgu_art_img_<id> is no longer written to — kept in the routing check
+// below only so any old leftover browser data still reads harmlessly.
 //   - hero slides: URL lives on each slide object in lgu_hero_slides
 //   - gallery: URL lives on each photo object in lgu_gallery
 //   - official photos: URL lives on each official's `photo` field in lgu_officials
@@ -2979,13 +2979,9 @@ let articles      = [];
 let settings      = {};
 
 async function loadAll() {
-  // Load text metadata from shared storage
-  const articleMeta = await sharedGet('lgu_articles') || [];
-  // Rehydrate images from localStorage for each article
-  articles = articleMeta.map(a => {
-    const imgs = localGet('lgu_art_img_' + (a.id || a.title));
-    return imgs ? { ...a, cover: imgs.cover || '', bodyHtml: imgs.bodyHtml || '' } : a;
-  });
+  // Cover/body (including images) now live directly on each article record
+  // in shared storage — no more per-article localStorage rehydration needed.
+  articles = await sharedGet('lgu_articles') || [];
 
   announcements = await dbGet('lgu_announcements') || [];
   settings      = await dbGet('lgu_settings')      || {};
@@ -3190,14 +3186,21 @@ function handleCoverUpload(event) {
     openResizeModal(e.target.result, () => {
       const btn = document.querySelector('.preset-btn');
       if (btn) selectPreset(btn, 1200, 630, 'cover');
-    }, (dataUrl, w, h) => {
-      document.getElementById('art-cover-data').value = dataUrl;
-      const img = document.getElementById('cover-preview');
-      img.src = dataUrl;
-      img.style.display = 'block';
-      document.getElementById('cover-placeholder').style.display = 'none';
-      document.getElementById('cover-upload-area').classList.add('has-image');
-      showToast(`Cover set — ${w}×${h}px ✓`);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading cover image…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'articles/');
+        document.getElementById('art-cover-data').value = publicUrl;
+        const img = document.getElementById('cover-preview');
+        img.src = publicUrl;
+        img.style.display = 'block';
+        document.getElementById('cover-placeholder').style.display = 'none';
+        document.getElementById('cover-upload-area').classList.add('has-image');
+        showToast(`Cover set — ${w}×${h}px ✓ (visible to all visitors)`);
+      } catch (err) {
+        console.error('[cover upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
     });
   };
   reader.readAsDataURL(file);
@@ -3301,18 +3304,25 @@ function insertEditorImage(event) {
       const fullWidthBtn = Array.from(document.querySelectorAll('.preset-btn'))
         .find(b => b.textContent.includes('Full Width'));
       if (fullWidthBtn) selectPreset(fullWidthBtn, 760, 428, 'fullbody');
-    }, (dataUrl, w, h) => {
-      // Restore selection then insert
-      editor().focus();
-      if (savedRange) {
-        const sel2 = window.getSelection();
-        sel2.removeAllRanges();
-        sel2.addRange(savedRange);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading image…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'articles/');
+        // Restore selection then insert
+        editor().focus();
+        if (savedRange) {
+          const sel2 = window.getSelection();
+          sel2.removeAllRanges();
+          sel2.addRange(savedRange);
+        }
+        document.execCommand('insertHTML', false,
+          `<img src="${publicUrl}" style="max-width:100%;width:${w}px;border-radius:6px;margin:16px 0;" alt="Article image"><p></p>`
+        );
+        showToast(`Image inserted — ${w}×${h}px ✓ (visible to all visitors)`);
+      } catch (err) {
+        console.error('[editor image upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
       }
-      document.execCommand('insertHTML', false,
-        `<img src="${dataUrl}" style="max-width:100%;width:${w}px;border-radius:6px;margin:16px 0;" alt="Article image"><p></p>`
-      );
-      showToast(`Image inserted — ${w}×${h}px ✓`);
     });
   };
   reader.readAsDataURL(file);
@@ -4827,8 +4837,10 @@ async function saveArticle() {
   const idx   = document.getElementById('article-edit-id').value;
   const existingId = idx !== '' ? (articles[parseInt(idx)].id || articles[parseInt(idx)].title) : artId;
 
-  // Metadata only — NO images — goes to shared storage
-  const meta = {
+  // Cover and body images are now public Storage URLs (small strings), so
+  // the full article — including cover and bodyHtml — goes straight to
+  // shared storage. No more localStorage split.
+  const fullArt = {
     id:        existingId,
     title,
     tag:       document.getElementById('art-tag').value,
@@ -4838,35 +4850,20 @@ async function saveArticle() {
     facebook:  document.getElementById('art-facebook').value.trim(),
     published: document.getElementById('art-published-toggle').classList.contains('on'),
     updatedAt: new Date().toISOString(),
-    hasImages: !!(cover || bodyHtml.includes('<img')),
+    cover,
+    bodyHtml,
   };
-
-  // Images → localStorage (keyed by article id, no shared storage payload)
-  const imgKey = 'lgu_art_img_' + existingId;
-  if (cover || bodyHtml) {
-    localSet(imgKey, { cover, bodyHtml });
-  }
-
-  // Full object (with images) stays in memory for this session
-  const fullArt = { ...meta, cover, bodyHtml };
 
   if (idx !== '') {
     articles[parseInt(idx)] = fullArt;
   } else {
-    meta.id = artId;
-    const fullNew = { ...meta, cover, bodyHtml };
-    articles.unshift(fullNew);
+    fullArt.id = artId;
+    articles.unshift(fullArt);
   }
 
-  // Save only metadata array to shared storage
-  const metaOnly = articles.map(a => {
-    const { cover: _c, bodyHtml: _b, ...m } = a;
-    return m;
-  });
-
-  const ok = await sharedSet('lgu_articles', metaOnly);
+  const ok = await sharedSet('lgu_articles', articles);
   if (ok) {
-    auditLog('save', `Article ${idx!==''?'updated':'published'}: "${title}" (${meta.published?'Published':'Draft'})`, _currentUser);
+    auditLog('save', `Article ${idx!==''?'updated':'published'}: "${title}" (${fullArt.published?'Published':'Draft'})`, _currentUser);
     showToast('Article saved ✓');
     renderArticles(); renderDash(); closeModal('article-modal');
   } else {
@@ -4877,12 +4874,8 @@ async function saveArticle() {
 async function deleteArticle(i) {
   if (!confirm('Delete this article?')) return;
   const a = articles[i];
-  // Remove images from localStorage too
-  if (a.id) localRemove('lgu_art_img_' + a.id);
-  if (a.title) localRemove('lgu_art_img_' + a.title);
   articles.splice(i, 1);
-  const metaOnly = articles.map(({ cover: _c, bodyHtml: _b, ...m }) => m);
-  await sharedSet('lgu_articles', metaOnly);
+  await sharedSet('lgu_articles', articles);
   auditLog('delete', `Article deleted: "${a.title}"`, _currentUser);
   renderArticles(); renderDash(); showToast('Article deleted');
 }

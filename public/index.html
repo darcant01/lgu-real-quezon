@@ -2199,14 +2199,10 @@
 
   // ── NEWS GRID ─────────────────────────────────────
   async function loadNews() {
-    const articleMeta = await safeGet('lgu_articles');
-    if (!articleMeta || !articleMeta.length) return;
-    // Rehydrate images from localStorage for each article
-    const articles = articleMeta.map(a => {
-      const imgKey = 'lgu_art_img_' + (a.id || a.title);
-      try { const imgs = localStorage.getItem(imgKey); if (imgs) { const p=JSON.parse(imgs); return {...a, cover:p.cover||'', bodyHtml:p.bodyHtml||''}; } } catch {}
-      return a;
-    });
+    const articles = await safeGet('lgu_articles');
+    if (!articles || !articles.length) return;
+    // cover and bodyHtml (with any inline images) now live directly on each
+    // article record in shared storage — no per-device rehydration needed.
     const published = articles.filter(a => a.published).slice(0, 3);
     if (!published.length) return;
 
