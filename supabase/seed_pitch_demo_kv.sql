@@ -108,6 +108,15 @@ INSERT INTO lgu_kv (key, value) VALUES
   {"title":"Full Disclosure Policy — Q2 2026","category":"Transparency Seal","type":"PDF","url":"#"}
 ]'),
 
+('lgu_programs', '[
+  {"icon":"🌊","title":"Coastal Resource Management","desc":"Protecting Real''s marine sanctuaries, coral reef systems, and fish landing areas through community-led conservation efforts and ordinance enforcement.","status":"Ongoing"},
+  {"icon":"🌱","title":"Sierra Madre Greening Program","desc":"Reforestation and watershed rehabilitation along the municipality''s mountainous interior, partnering with DENR and indigenous peoples groups.","status":"Ongoing"},
+  {"icon":"🛣️","title":"Farm-to-Market Roads","desc":"Improving road access from upland barangays to the municipal center, reducing post-harvest losses and boosting local agricultural trade.","status":"Ongoing"},
+  {"icon":"🏘️","title":"Resettlement & Housing","desc":"Safe housing relocation for families in hazard-prone coastal and riverine areas, with the support of NHA and DILG.","status":"New 2026"},
+  {"icon":"⚡","title":"Solar Street Lighting","desc":"Installing solar-powered street lights in all 17 barangays to improve nighttime safety and reduce the municipal electricity budget.","status":"New 2026"},
+  {"icon":"🐟","title":"Livelihood & Fisheries","desc":"Boat assistance, fishing gear provisioning, and livelihood training programs for artisanal fishing households along Real''s coastline.","status":"Ongoing"}
+]'),
+
 ('lgu_alert', '{"active":false,"title":"","body":""}'),
 
 ('lgu_settings', '{"name":"Municipality of Real","province":"Quezon Province"}')

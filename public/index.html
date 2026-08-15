@@ -331,6 +331,10 @@
   .status-ongoing::before { content: '●'; color: var(--sage); font-size: 8px; }
   .status-new { background: rgba(201,162,39,0.12); color: var(--gold); }
   .status-new::before { content: '★'; font-size: 8px; }
+  .status-completed { background: rgba(26,60,46,0.1); color: var(--forest); }
+  .status-completed::before { content: '✓'; font-size: 8px; }
+  .status-planned { background: rgba(100,100,100,0.1); color: var(--slate-l); }
+  .status-planned::before { content: '○'; font-size: 8px; }
 
   /* CONTACT */
   .contact { padding: 90px 8%; background: linear-gradient(160deg, var(--forest-d) 0%, #070E0A 100%); color: var(--white); display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; position: relative; } .contact::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 70% 20%, rgba(42,92,68,0.3) 0%, transparent 60%); pointer-events:none; }
@@ -1623,7 +1627,7 @@
   <div class="section-label">Development Agenda</div>
   <h2 class="section-title">Municipal Programs & Projects</h2>
   <p class="section-sub">Strategic initiatives driving Real's sustainable growth, resilience, and quality of life.</p>
-  <div class="programs-grid">
+  <div class="programs-grid" id="programs-grid">
     <div class="program-card"><div class="program-num">01</div><div class="program-icon">🌊</div><h3>Coastal Resource Management</h3><p>Protecting Real's marine sanctuaries, coral reef systems, and fish landing areas through community-led conservation efforts and ordinance enforcement.</p><span class="program-status status-ongoing">Ongoing</span></div>
     <div class="program-card"><div class="program-num">02</div><div class="program-icon">🌱</div><h3>Sierra Madre Greening Program</h3><p>Reforestation and watershed rehabilitation along the municipality's mountainous interior, partnering with DENR and indigenous peoples groups.</p><span class="program-status status-ongoing">Ongoing</span></div>
     <div class="program-card"><div class="program-num">03</div><div class="program-icon">🛣️</div><h3>Farm-to-Market Roads</h3><p>Improving road access from upland barangays to the municipal center, reducing post-harvest losses and boosting local agricultural trade.</p><span class="program-status status-ongoing">Ongoing</span></div>
@@ -1632,6 +1636,7 @@
     <div class="program-card"><div class="program-num">06</div><div class="program-icon">🐟</div><h3>Livelihood & Fisheries</h3><p>Boat assistance, fishing gear provisioning, and livelihood training programs for artisanal fishing households along Real's coastline.</p><span class="program-status status-ongoing">Ongoing</span></div>
   </div>
 </section>
+<!-- Note: cards above are a static fallback shown until loadPrograms() replaces them with live admin-managed content -->
 
 <!-- EVENTS SECTION -->
 <section class="events" id="events">
@@ -2496,6 +2501,22 @@
       </a>`).join('');
   }
 
+  // ── PROGRAMS & PROJECTS (Development Agenda) ──────
+  async function loadPrograms() {
+    const progs = await safeGet('lgu_programs');
+    if (!progs || !progs.length) return; // keep static fallback cards
+    const STATUS_CLASS = { 'Ongoing':'status-ongoing', 'New 2026':'status-new', 'Completed':'status-completed', 'Planned':'status-planned' };
+    const grid = document.getElementById('programs-grid');
+    grid.innerHTML = progs.map((p,i) => `
+      <div class="program-card">
+        <div class="program-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="program-icon">${esc(p.icon||'📌')}</div>
+        <h3>${esc(p.title||'')}</h3>
+        <p>${esc(p.desc||'')}</p>
+        <span class="program-status ${STATUS_CLASS[p.status]||'status-ongoing'}">${esc(p.status||'Ongoing')}</span>
+      </div>`).join('');
+  }
+
   // ── EMERGENCY ALERT ───────────────────────────────
   async function loadAlert() {
     const alert = await safeGet('lgu_alert');
@@ -2751,7 +2772,7 @@
   (async () => {
     await Promise.all([
       loadTicker(), loadNews(), loadHeroSlides(), loadOfficials(),
-      loadAlert(), loadEvents(), loadGallery(), loadServices(),
+      loadAlert(), loadEvents(), loadGallery(), loadServices(), loadPrograms(),
       loadBranding(), loadDocuments(), loadCharter(), loadBarangays(), loadDirectory(), loadFAQ()
     ]);
   })();

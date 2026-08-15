@@ -1226,6 +1226,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('hero', this)"><span class="icon">🌅</span> Hero Images</button>
     <button class="nav-item" onclick="switchPanel('officials', this)"><span class="icon">🏛️</span> Officials</button>
     <button class="nav-item" onclick="switchPanel('services', this)"><span class="icon">🛎️</span> Services</button>
+    <button class="nav-item" onclick="switchPanel('programs', this)"><span class="icon">📈</span> Programs</button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1410,6 +1411,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="services-editor-body">
           <p style="color:var(--slate-l);font-size:0.85rem;margin-bottom:16px;">Loading service cards…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRAMS & PROJECTS -->
+    <div class="panel" id="panel-programs">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>📈 Development Agenda — Programs & Projects</h3><p>Edit the municipal program cards shown in the "Municipal Programs & Projects" homepage section.</p></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="addProgram()">+ Add Program</button>
+            <button class="btn btn-gold" onclick="savePrograms()">💾 Save</button>
+          </div>
+        </div>
+        <div class="card-body" id="programs-editor-body">
+          <p style="color:var(--slate-l);font-size:0.85rem;">Loading programs…</p>
         </div>
       </div>
     </div>
@@ -2322,10 +2339,10 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','settings','users','audit'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','settings','users','audit'],
   editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
   compliance: ['dashboard','transparency','charter'],
-  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services'],
+  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs'],
 };
 const ROLE_LABELS = { super:'Super Admin', editor:'Editor (PIO)', compliance:'Compliance Officer', viewer:'Viewer' };
 const ROLE_CSS    = { super:'role-super', editor:'role-editor', compliance:'role-compliance', viewer:'role-viewer' };
@@ -2936,7 +2953,7 @@ async function loadAll() {
   settings      = await dbGet('lgu_settings')      || {};
   await Promise.all([
     loadHeroSlides(), loadOfficialsAdmin(), loadAlert(),
-    loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(),
+    loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
     loadFAQAdmin(), loadAdminUsers(), loadAuditTrail()
   ]);
@@ -2951,7 +2968,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -4335,6 +4352,76 @@ function renderServicesEditor() {
 async function saveServices() {
   const ok = await dbSet('lgu_services', services);
   if (ok) showToast('Services saved ✓');
+  else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
+//  PROGRAMS & PROJECTS (Development Agenda)
+// ═══════════════════════════════════════════════
+let programs = [];
+const PROGRAM_STATUSES = ['Ongoing', 'New 2026', 'Completed', 'Planned'];
+
+const DEFAULT_PROGRAMS = [
+  { icon:'🌊', title:'Coastal Resource Management', desc:"Protecting Real's marine sanctuaries, coral reef systems, and fish landing areas through community-led conservation efforts and ordinance enforcement.", status:'Ongoing' },
+  { icon:'🌱', title:'Sierra Madre Greening Program', desc:"Reforestation and watershed rehabilitation along the municipality's mountainous interior, partnering with DENR and indigenous peoples groups.", status:'Ongoing' },
+  { icon:'🛣️', title:'Farm-to-Market Roads', desc:'Improving road access from upland barangays to the municipal center, reducing post-harvest losses and boosting local agricultural trade.', status:'Ongoing' },
+  { icon:'🏘️', title:'Resettlement & Housing', desc:'Safe housing relocation for families in hazard-prone coastal and riverine areas, with the support of NHA and DILG.', status:'New 2026' },
+  { icon:'⚡', title:'Solar Street Lighting', desc:'Installing solar-powered street lights in all barangays to improve nighttime safety and reduce the municipal electricity budget.', status:'New 2026' },
+  { icon:'🐟', title:'Livelihood & Fisheries', desc:"Boat assistance, fishing gear provisioning, and livelihood training programs for artisanal fishing households along Real's coastline.", status:'Ongoing' },
+];
+
+async function loadProgramsAdmin() {
+  programs = await dbGet('lgu_programs') || DEFAULT_PROGRAMS.map(p=>({...p}));
+  renderProgramsEditor();
+}
+
+function renderProgramsEditor() {
+  const el = document.getElementById('programs-editor-body');
+  if (!programs.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No programs yet. Click + Add Program.</p>'; return; }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    ${programs.map((p,i) => `
+      <div style="border:1.5px solid var(--border);border-radius:8px;padding:16px;background:var(--bg);position:relative;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;">${escHtml(p.icon||'📌')}</div>
+            <span style="font-size:0.72rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;">Program #${i+1}</span>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="deleteProgram(${i})" title="Remove">🗑</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Emoji Icon</div>
+            <input type="text" value="${escHtml(p.icon||'')}" maxlength="4" style="width:60px;border:1px solid var(--border);border-radius:5px;padding:6px 8px;font-size:1rem;text-align:center;outline:none;" oninput="programs[${i}].icon=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Title</div>
+            <input type="text" value="${escHtml(p.title||'')}" placeholder="Program name" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.85rem;outline:none;font-family:'Inter',sans-serif;" oninput="programs[${i}].title=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Description</div>
+            <textarea style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;outline:none;font-family:'Inter',sans-serif;min-height:64px;resize:vertical;" oninput="programs[${i}].desc=this.value">${escHtml(p.desc||'')}</textarea>
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Status</div>
+            <select oninput="programs[${i}].status=this.value" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+              ${PROGRAM_STATUSES.map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:rgba(26,60,46,0.06);border-radius:6px;font-size:0.8rem;color:var(--slate-l);">
+      💡 Currently showing ${programs.length} program${programs.length!==1?'s':''}. Changes appear on the live site after saving.
+    </div>`;
+}
+
+function addProgram() { programs.push({ icon:'📌', title:'', desc:'', status:'Planned' }); renderProgramsEditor(); }
+function deleteProgram(i) { if(!confirm('Remove this program?'))return; programs.splice(i,1); renderProgramsEditor(); showToast('Removed'); }
+
+async function savePrograms() {
+  const ok = await dbSet('lgu_programs', programs);
+  if (ok) showToast(`Programs saved — ${programs.length} card${programs.length!==1?'s':''} ✓`);
   else showToast('Save failed','error');
 }
 
