@@ -2848,9 +2848,31 @@ document.addEventListener('click', e => {
 // ═══════════════════════════════════════════════
 
 const IMAGE_KEYS = new Set([
-  'lgu_hero_slides', 'lgu_gallery', 'lgu_logo_data', 'lgu_official_photos', 'lgu_favicon_data'
+  'lgu_gallery', 'lgu_logo_data', 'lgu_official_photos', 'lgu_favicon_data'
 ]);
 // Article images stored separately per article id: lgu_art_img_<id>
+// NOTE: lgu_hero_slides used to live here (localStorage-only), which meant hero
+// images were only ever visible on the same browser/device that uploaded them —
+// never to real site visitors. It now uploads to Supabase Storage instead; see
+// uploadDataUrlToStorage() and handleSlideUpload() below.
+
+// Upload a base64 data URL to Supabase Storage and return its public URL.
+// Used for content that must be visible to every visitor (not just the
+// uploading browser) — currently: hero slideshow images.
+async function uploadDataUrlToStorage(dataUrl, bucket, folder = '') {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+  const name = `${folder}${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { data, error } = await _sb.storage.from(bucket).upload(name, blob, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: blob.type || 'image/jpeg',
+  });
+  if (error) throw error;
+  const { data: pub } = _sb.storage.from(bucket).getPublicUrl(data.path);
+  return pub.publicUrl;
+}
 
 // Shared storage (text/metadata) — backed by live Supabase lgu_kv table
 async function sharedGet(key) {
@@ -4068,10 +4090,17 @@ function handleSlideUpload(event) {
       let target = Array.from(allPresets).find(b => b.textContent.includes('1920'));
       if (!target && allPresets.length) target = allPresets[0];
       if (target) target.click();
-    }, (dataUrl, w, h) => {
-      heroSlides.push({ image: dataUrl, caption: '', subtitle: '' });
-      renderSlideGrid();
-      showToast(`Slide added — ${w}×${h}px ✓`);
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading image…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'hero/');
+        heroSlides.push({ image: publicUrl, caption:'', subtitle:'' });
+        renderSlideGrid();
+        showToast(`Slide added — ${w}×${h}px ✓ (visible to all visitors)`);
+      } catch (err) {
+        console.error('[hero upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
     });
   };
   reader.readAsDataURL(file);
@@ -4087,15 +4116,23 @@ function moveSlide(idx, dir) {
 
 function deleteSlide(idx) {
   if (!confirm('Remove this slide from the hero?')) return;
+  const removed = heroSlides[idx];
   heroSlides.splice(idx, 1);
   renderSlideGrid();
   showToast('Slide removed');
+  // Best-effort cleanup of the stored file (non-blocking, ignore failures)
+  if (removed?.image && removed.image.includes('/lgu-images/')) {
+    try {
+      const path = removed.image.split('/lgu-images/')[1];
+      if (path) _sb.storage.from('lgu-images').remove([decodeURIComponent(path)]);
+    } catch {}
+  }
 }
 
 async function saveHeroSlides() {
   const ok = await dbSet('lgu_hero_slides', heroSlides);
   if (ok) { auditLog('save', `Hero slideshow saved — ${heroSlides.length} slides`, _currentUser); showToast(`Hero slideshow saved — ${heroSlides.length} slide${heroSlides.length!==1?'s':''} ✓`); }
-  else showToast('Save failed — images may be too large', 'error');
+  else showToast('Save failed','error');
 }
 
 // ═══════════════════════════════════════════════
