@@ -458,7 +458,7 @@
     .nav-links        { display: none; }
     .nav-hamburger    { display: flex; }
     .mobile-nav-drawer { display: flex; }
-    nav               { padding: 0 4%; }
+    nav               { padding: 0 4%; backdrop-filter: none; -webkit-backdrop-filter: none; background: linear-gradient(180deg, rgba(15,36,25,0.98) 0%, rgba(15,36,25,0.96) 100%); }
     .nav-title span   { display: none; }
 
     /* Hero */
@@ -468,9 +468,9 @@
     .hero-stats { position: static !important; margin-top: 36px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px; overflow: hidden; }
     .stat {
       border-left: none !important; padding-left: 0 !important;
-      background: rgba(255,255,255,0.07); border-radius: 8px; padding: 14px 12px !important;
+      background: rgba(255,255,255,0.14); border-radius: 8px; padding: 14px 12px !important;
       transform: none !important; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1) !important;
-      backdrop-filter: blur(6px);
+      backdrop-filter: none;
     }
     .stat:hover, .stat:active { transform: none !important; }
     .hero-slide-caption { display: none; }
