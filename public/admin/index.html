@@ -257,6 +257,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 .tag-infra   { background: rgba(26,60,46,0.1);    color: var(--forest); }
 .tag-edu     { background: rgba(49,130,206,0.1);  color: #3182CE; }
 .tag-social  { background: rgba(128,90,213,0.1);  color: #805AD5; }
+.tag-sports  { background: rgba(221,107,32,0.12);  color: #DD6B20; }
 .article-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
 /* ── STATS ROW ── */
@@ -1860,6 +1861,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
             <option value="infra">🏗️ Infrastructure</option>
             <option value="edu">🎓 Education</option>
             <option value="social">🤝 Social Welfare</option>
+            <option value="sports">⚽ Sports</option>
           </select>
         </div>
         <div class="form-group">
@@ -4760,8 +4762,8 @@ async function deleteAnn(i) {
 // ═══════════════════════════════════════════════
 //  ARTICLES
 // ═══════════════════════════════════════════════
-const TAG_LABELS = { news:'News', health:'Health', infra:'Infrastructure', edu:'Education', social:'Social Welfare' };
-const TAG_ICONS  = { news:'📰', health:'🏥', infra:'🏗️', edu:'🎓', social:'🤝' };
+const TAG_LABELS = { news:'News', health:'Health', infra:'Infrastructure', edu:'Education', social:'Social Welfare', sports:'Sports' };
+const TAG_ICONS  = { news:'📰', health:'🏥', infra:'🏗️', edu:'🎓', social:'🤝', sports:'⚽' };
 
 function renderArticles() {
   const el = document.getElementById('article-list');
