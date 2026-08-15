@@ -1228,6 +1228,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('officials', this)"><span class="icon">🏛️</span> Officials</button>
     <button class="nav-item" onclick="switchPanel('services', this)"><span class="icon">🛎️</span> Services</button>
     <button class="nav-item" onclick="switchPanel('programs', this)"><span class="icon">📈</span> Programs</button>
+    <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1428,6 +1429,38 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="programs-editor-body">
           <p style="color:var(--slate-l);font-size:0.85rem;">Loading programs…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT US PAGES -->
+    <div class="panel" id="panel-aboutpages">
+      <div class="card">
+        <div class="card-header"><div><h3>📜 Brief History</h3><p>Get a glimpse into our rich history. — shown on the "Brief History" card on the homepage.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-history-body" placeholder="Write the municipality's history here. Use blank lines between paragraphs." style="min-height:180px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('history')">Save Brief History</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>🎯 Mission and Vision</h3><p>Learn about our purpose and the vision that inspires our daily efforts.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-mission_vision-body" placeholder="Write the municipality's Mission and Vision statements here." style="min-height:180px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('mission_vision')">Save Mission and Vision</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>⚖️ Mandates</h3><p>Explore the essential directives and regulations set forth by our local government.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-mandates-body" placeholder="List the mandates, laws, or directives that govern the LGU here." style="min-height:180px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('mandates')">Save Mandates</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>🤝 Gender and Development Corner</h3><p>Engage with informative content, stay updated on GAD-related news, and join us in promoting positive change for a more equitable and diverse future.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-gad-body" placeholder="Write GAD programs, news, and content here." style="min-height:180px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('gad')">Save GAD Corner</button>
         </div>
       </div>
     </div>
@@ -2368,7 +2401,7 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','settings','users','audit'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','aboutpages','settings','users','audit'],
   editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
   compliance: ['dashboard','transparency','charter'],
   viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs'],
@@ -3003,6 +3036,7 @@ async function loadAll() {
   await Promise.all([
     loadHeroSlides(), loadOfficialsAdmin(), loadAlert(),
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
+    loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
     loadFAQAdmin(), loadAdminUsers(), loadAuditTrail()
   ]);
@@ -3017,7 +3051,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', aboutpages:'About Us Pages', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -4525,6 +4559,47 @@ async function savePrograms() {
   const ok = await dbSet('lgu_programs', programs);
   if (ok) showToast(`Programs saved — ${programs.length} card${programs.length!==1?'s':''} ✓`);
   else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
+//  ABOUT US PAGES (History, Mission & Vision, Mandates, GAD)
+// ═══════════════════════════════════════════════
+const ABOUT_PAGE_KEYS = ['history', 'mission_vision', 'mandates', 'gad'];
+
+// Very small, safe plain-text -> HTML converter for these simple pages
+// (not the full rich editor used for Articles): escapes everything, then
+// turns blank-line-separated blocks into <p> paragraphs and single line
+// breaks within a paragraph into <br>.
+function plainTextToParagraphs(text) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return text
+    .split(/\n\s*\n/)
+    .map(block => block.trim())
+    .filter(Boolean)
+    .map(block => `<p>${esc(block).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+// Reverse-ish: pull plain text back out of saved HTML for editing
+function htmlToPlainText(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html.replace(/<\/p>\s*<p>/g, '\n\n').replace(/<br\s*\/?>/g, '\n');
+  return (tmp.textContent || '').trim();
+}
+
+async function loadAboutPagesAdmin() {
+  for (const key of ABOUT_PAGE_KEYS) {
+    const data = await sharedGet('lgu_' + key);
+    const el = document.getElementById('ap-' + key + '-body');
+    if (el) el.value = (data && data.body) ? htmlToPlainText(data.body) : '';
+  }
+}
+async function saveAboutPage(key) {
+  const el = document.getElementById('ap-' + key + '-body');
+  const text = (el.value || '').trim();
+  const body = text ? plainTextToParagraphs(text) : '';
+  const ok = await sharedSet('lgu_' + key, { body });
+  if (ok) { auditLog('save', `About Us page updated: ${key}`, _currentUser); showToast('Saved ✓'); }
+  else showToast('Save failed', 'error');
 }
 
 // ═══════════════════════════════════════════════
