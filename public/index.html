@@ -478,9 +478,24 @@
   }
   .mobile-nav-drawer a:hover, .mobile-nav-drawer a:active { background: rgba(255,255,255,0.08); color: white; }
   .mobile-nav-drawer a.cta { background: var(--gold); color: var(--forest-d); font-weight: 700; margin-top: 8px; }
-  #mobile-services-submenu { display: contents; }
-  #mobile-charter-submenu { display: contents; }
-  #mobile-docs-submenu { display: contents; }
+
+  /* Collapsible sub-menus (mobile equivalent of the desktop hover dropdowns) */
+  .drawer-item-row { display: flex; align-items: stretch; gap: 2px; }
+  .drawer-item-row a { flex: 1; }
+  .drawer-toggle {
+    background: none; border: none; color: rgba(255,255,255,0.45);
+    font-size: 1rem; padding: 0 14px; cursor: pointer;
+    transition: transform 0.25s, color 0.15s; flex-shrink: 0;
+  }
+  .drawer-toggle:hover, .drawer-toggle:active { color: var(--gold); }
+  .drawer-toggle.open { transform: rotate(180deg); color: var(--gold); }
+  .drawer-submenu {
+    display: none; flex-direction: column; gap: 2px;
+    padding-left: 18px; margin-bottom: 4px;
+    border-left: 2px solid rgba(255,255,255,0.08);
+  }
+  .drawer-submenu.open { display: flex; }
+  .drawer-submenu a { font-size: 0.85rem; padding: 11px 14px; color: rgba(255,255,255,0.65); }
   .mobile-nav-drawer .drawer-section {
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; color: rgba(255,255,255,0.3);
@@ -1473,22 +1488,33 @@
 <!-- MOBILE NAV DRAWER -->
 <div class="mobile-nav-drawer" id="mobile-nav-drawer">
   <div class="drawer-section">Explore</div>
-  <a href="#about"         onclick="closeMobileNav()">🏔️ About Real</a>
-  <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('history')" style="padding-left:34px;font-size:0.85rem;">📜 Brief History</a>
-  <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mission_vision')" style="padding-left:34px;font-size:0.85rem;">🎯 Mission and Vision</a>
-  <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mandates')" style="padding-left:34px;font-size:0.85rem;">⚖️ Mandates</a>
-  <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('gad')" style="padding-left:34px;font-size:0.85rem;">🤝 GAD Corner</a>
-  <a href="#services"      onclick="closeMobileNav()">🛎️ Citizen Services</a>
-  <div id="mobile-services-submenu">
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">📋 Civil Registry</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">🏗️ Building Permits</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">💼 Business Licensing</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">🏥 Health Services</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">🎓 Social Welfare</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">📑 Certifications</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">🌊 Environmental Office</a>
-    <a href="#" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">💰 Real Property Tax</a>
+
+  <div class="drawer-item-row">
+    <a href="#about" onclick="closeMobileNav()">🏔️ About Real</a>
+    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand About Real submenu">▾</button>
   </div>
+  <div class="drawer-submenu" id="mobile-about-submenu">
+    <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('history')">📜 Brief History</a>
+    <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mission_vision')">🎯 Mission and Vision</a>
+    <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mandates')">⚖️ Mandates</a>
+    <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('gad')">🤝 GAD Corner</a>
+  </div>
+
+  <div class="drawer-item-row">
+    <a href="#services" onclick="closeMobileNav()">🛎️ Citizen Services</a>
+    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand Citizen Services submenu">▾</button>
+  </div>
+  <div class="drawer-submenu" id="mobile-services-submenu">
+    <a href="#" onclick="closeMobileNav()">📋 Civil Registry</a>
+    <a href="#" onclick="closeMobileNav()">🏗️ Building Permits</a>
+    <a href="#" onclick="closeMobileNav()">💼 Business Licensing</a>
+    <a href="#" onclick="closeMobileNav()">🏥 Health Services</a>
+    <a href="#" onclick="closeMobileNav()">🎓 Social Welfare</a>
+    <a href="#" onclick="closeMobileNav()">📑 Certifications</a>
+    <a href="#" onclick="closeMobileNav()">🌊 Environmental Office</a>
+    <a href="#" onclick="closeMobileNav()">💰 Real Property Tax</a>
+  </div>
+
   <a href="#news"          onclick="closeMobileNav()">📰 News & Updates</a>
   <a href="#officials"     onclick="closeMobileNav()">🏛️ Elected Officials</a>
   <a href="#programs"      onclick="closeMobileNav()">📋 Programs</a>
@@ -1498,10 +1524,19 @@
   <a href="#barangays"     onclick="closeMobileNav()">🗺️ Barangay Profiles</a>
   <a href="#directory"     onclick="closeMobileNav()">📞 Directory</a>
   <div class="drawer-section">Resources</div>
-  <a href="#transparency"  onclick="closeMobileNav()">📂 Public Documents</a>
-  <div id="mobile-docs-submenu"></div>
-  <a href="#charter"       onclick="closeMobileNav()">📋 Citizen's Charter</a>
-  <div id="mobile-charter-submenu"></div>
+
+  <div class="drawer-item-row">
+    <a href="#transparency" onclick="closeMobileNav()">📂 Public Documents</a>
+    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand Public Documents submenu">▾</button>
+  </div>
+  <div class="drawer-submenu" id="mobile-docs-submenu"></div>
+
+  <div class="drawer-item-row">
+    <a href="#charter" onclick="closeMobileNav()">📋 Citizen's Charter</a>
+    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand Citizen's Charter submenu">▾</button>
+  </div>
+  <div class="drawer-submenu" id="mobile-charter-submenu"></div>
+
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
@@ -2094,6 +2129,14 @@
     document.getElementById('mobile-nav-drawer').classList.remove('open');
     document.getElementById('hamburger').classList.remove('open');
     document.body.style.overflow = '';
+  }
+  function toggleDrawerSubmenu(btn) {
+    const row = btn.closest('.drawer-item-row');
+    const submenu = row.nextElementSibling;
+    if (!submenu || !submenu.classList.contains('drawer-submenu')) return;
+    const willOpen = !submenu.classList.contains('open');
+    submenu.classList.toggle('open', willOpen);
+    btn.classList.toggle('open', willOpen);
   }
   // Close drawer when clicking overlay area
   document.getElementById('mobile-nav-drawer').addEventListener('click', e => {
@@ -2824,7 +2867,7 @@
     const mobileMenu = document.getElementById('mobile-services-submenu');
     if (mobileMenu) {
       mobileMenu.innerHTML = svcs.map(s =>
-        `<a href="${esc(s.link||'#services')}" onclick="closeMobileNav()" style="padding-left:34px;font-size:0.85rem;">${esc(s.icon||'📋')} ${esc(s.title||'')}</a>`
+        `<a href="${esc(s.link||'#services')}" onclick="closeMobileNav()">${esc(s.icon||'📋')} ${esc(s.title||'')}</a>`
       ).join('');
     }
   }
@@ -3050,7 +3093,7 @@
     const mobileMenu = document.getElementById('mobile-docs-submenu');
     if (mobileMenu) {
       mobileMenu.innerHTML = cats.map((c,i) =>
-        `<a href="javascript:void(0)" onclick="closeMobileNav();goToDocCategory('${esc(i===0?'all':c)}')" style="padding-left:34px;font-size:0.85rem;">${i===0?'📂':'📄'} ${esc(c)}</a>`
+        `<a href="javascript:void(0)" onclick="closeMobileNav();goToDocCategory('${esc(i===0?'all':c)}')">${i===0?'📂':'📄'} ${esc(c)}</a>`
       ).join('');
     }
   }
@@ -3106,7 +3149,7 @@
     const mobileMenu = document.getElementById('mobile-charter-submenu');
     if (mobileMenu) {
       mobileMenu.innerHTML = cats.map((c,i) =>
-        `<a href="javascript:void(0)" onclick="closeMobileNav();goToCharterCategory('${esc(i===0?'all':c)}')" style="padding-left:34px;font-size:0.85rem;">${i===0?'📋':'📄'} ${esc(c)}</a>`
+        `<a href="javascript:void(0)" onclick="closeMobileNav();goToCharterCategory('${esc(i===0?'all':c)}')">${i===0?'📋':'📄'} ${esc(c)}</a>`
       ).join('');
     }
   }
