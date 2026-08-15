@@ -8,6 +8,24 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Official website of the Municipality of Real, Quezon Province, Philippines.">
 <title>Municipality of Real — Quezon Province</title>
+
+<!-- Open Graph / Facebook & Messenger link previews -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Municipality of Real, Quezon Province">
+<meta property="og:title" content="Municipality of Real — Quezon Province">
+<meta property="og:description" content="Official website of the Municipality of Real, Quezon Province, Philippines. Gateway to the Pacific Shore of Quezon.">
+<meta property="og:image" content="/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://lgu-real-quezon.vercel.app">
+<meta property="og:locale" content="en_PH">
+
+<!-- Twitter/X Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Municipality of Real — Quezon Province">
+<meta name="twitter:description" content="Official website of the Municipality of Real, Quezon Province, Philippines.">
+<meta name="twitter:image" content="/og-image.jpg">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://llybnlehnagtaghtaouj.supabase.co">
@@ -41,12 +59,19 @@
     perspective-origin: center center;
   }
 
-  /* Global card transition polish */
-  .service-card, .news-card, .official-card, .event-card,
-  .bgy-card, .dir-card, .doc-card, .gallery-item,
-  .program-card, .pillar, .faq-item {
-    will-change: transform;
-    backface-visibility: hidden;
+  /* Global card transition polish — GPU layer promotion only where the
+     hover-driven 3D tilt effect can actually fire (mouse/trackpad).
+     Touch devices never trigger mousemove, so skip the will-change cost
+     there entirely — with 15-20+ cards per grid (Barangays, Directory,
+     Gallery), keeping every one permanently GPU-layered on mobile wastes
+     memory/compositing budget for an effect that never shows. */
+  @media (hover: hover) and (pointer: fine) {
+    .service-card, .news-card, .official-card, .event-card,
+    .bgy-card, .dir-card, .doc-card, .gallery-item,
+    .program-card, .pillar, .faq-item {
+      will-change: transform;
+      backface-visibility: hidden;
+    }
   }
 
   /* ── LIGHT SWEEP EFFECT on service cards ── */
@@ -465,7 +490,7 @@
     .hero { padding: 100px 6% 100px; min-height: 90vh; }
     .hero h1 { font-size: clamp(2.2rem, 8vw, 3.5rem); }
     .hero-desc { font-size: 0.95rem; }
-    .hero-stats { position: static !important; margin-top: 36px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px; overflow: hidden; }
+    .hero-stats { position: static !important; margin-top: 36px; display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px !important; overflow: hidden; }
     .stat {
       border-left: none !important; padding-left: 0 !important;
       background: rgba(255,255,255,0.14); border-radius: 8px; padding: 14px 12px !important;
