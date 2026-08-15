@@ -479,6 +479,7 @@
   .mobile-nav-drawer a:hover, .mobile-nav-drawer a:active { background: rgba(255,255,255,0.08); color: white; }
   .mobile-nav-drawer a.cta { background: var(--gold); color: var(--forest-d); font-weight: 700; margin-top: 8px; }
   #mobile-services-submenu { display: contents; }
+  #mobile-charter-submenu { display: contents; }
   .mobile-nav-drawer .drawer-section {
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; color: rgba(255,255,255,0.3);
@@ -1448,7 +1449,12 @@
     <li><a href="#events">Events</a></li>
     <li><a href="#gallery">Gallery</a></li>
     <li><a href="#transparency">Documents</a></li>
-    <li><a href="#charter">Citizen's Charter</a></li>
+    <li class="nav-dropdown">
+      <a href="#charter">Citizen's Charter ▾</a>
+      <div class="nav-dropdown-menu" id="nav-charter-menu">
+        <a href="javascript:void(0)" onclick="goToCharterCategory('all')">📋 All Services</a>
+      </div>
+    </li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
@@ -1488,6 +1494,7 @@
   <div class="drawer-section">Resources</div>
   <a href="#transparency"  onclick="closeMobileNav()">📂 Public Documents</a>
   <a href="#charter"       onclick="closeMobileNav()">📋 Citizen's Charter</a>
+  <div id="mobile-charter-submenu"></div>
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
@@ -3057,6 +3064,31 @@
       `<button class="charter-cat-btn${i===0?' active':''}" onclick="filterCharter('${esc(i===0?'all':c)}',this)">${esc(c)}</button>`
     ).join('');
     filterCharter('all', catEl.firstElementChild);
+
+    // Keep the nav dropdown and mobile drawer in sync with the same categories
+    const navMenu = document.getElementById('nav-charter-menu');
+    if (navMenu) {
+      navMenu.innerHTML = cats.map((c,i) =>
+        `<a href="javascript:void(0)" onclick="goToCharterCategory('${esc(i===0?'all':c)}')">${i===0?'📋':'📄'} ${esc(c)}</a>`
+      ).join('');
+    }
+    const mobileMenu = document.getElementById('mobile-charter-submenu');
+    if (mobileMenu) {
+      mobileMenu.innerHTML = cats.map((c,i) =>
+        `<a href="javascript:void(0)" onclick="closeMobileNav();goToCharterCategory('${esc(i===0?'all':c)}')" style="padding-left:34px;font-size:0.85rem;">${i===0?'📋':'📄'} ${esc(c)}</a>`
+      ).join('');
+    }
+  }
+  // Scroll to the Charter section and pre-filter it by category (used by
+  // the nav dropdown / mobile drawer shortcuts)
+  function goToCharterCategory(cat) {
+    const section = document.getElementById('charter');
+    if (section) section.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      const btns = document.querySelectorAll('#charter-categories .charter-cat-btn');
+      const target = cat === 'all' ? btns[0] : Array.from(btns).find(b => b.textContent === cat);
+      if (target) target.click();
+    }, 350);
   }
   function filterCharter(cat, btn) {
     document.querySelectorAll('.charter-cat-btn').forEach(b => b.classList.remove('active'));
