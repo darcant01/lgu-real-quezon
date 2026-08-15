@@ -464,6 +464,9 @@
     .services { padding: 60px 5%; }
     .services-grid { grid-template-columns: 1fr 1fr; }
     .about { padding: 60px 5%; grid-template-columns: 1fr; gap: 40px; }
+    .about > div { min-width: 0; }
+    .about-map-card { padding: 28px 22px; }
+    .map-svg-wrap svg { width: 100%; height: auto; max-width: 280px; display: block; }
     .news { padding: 60px 5%; }
     .news-grid { grid-template-columns: 1fr; }
     .officials { padding: 60px 5%; }
@@ -1526,7 +1529,7 @@
           <path d="M80,60 L88,90 L95,120 L100,150 L105,180" stroke="rgba(100,180,220,0.4)" stroke-width="2" fill="none"/>
         </svg>
       </div>
-      <div style="display:flex;gap:18px;font-size:0.75rem;">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.75rem;">
         <span style="color:#8FAF8F;">🏔 Sierra Madre</span>
         <span style="color:rgba(201,162,39,0.8);">🌊 Pacific Coast</span>
         <span style="color:rgba(255,255,255,0.5);">🛣 Quezon Road</span>
