@@ -2247,6 +2247,7 @@
     const all = (window._pubArticles || []).filter(a => a.published)
       .sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
     const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;max-width:920px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;';
@@ -2276,7 +2277,7 @@
     modal.innerHTML = `
       <div style="padding:28px 36px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #EAE5DB;">
         <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:900;color:#0F2419;margin:0 0 14px;">All News & Announcements</h2>
-        <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="background:none;border:none;font-size:1.3rem;color:#718096;cursor:pointer;margin-bottom:14px;">✕</button>
+        <button onclick="this.closest('.lgu-modal-overlay').remove()" style="background:none;border:none;font-size:1.3rem;color:#718096;cursor:pointer;margin-bottom:14px;">✕</button>
       </div>
       <div style="padding:6px 36px 28px;max-height:70vh;overflow-y:auto;">${listHtml}</div>`;
 
@@ -2285,7 +2286,7 @@
     document.body.appendChild(overlay);
   }
   function closeAllNewsAndOpen(idx) {
-    document.querySelectorAll('[style*="position:fixed"]').forEach(el => el.remove());
+    document.querySelectorAll('.lgu-modal-overlay').forEach(el => el.remove());
     openArticleModal_pub(idx);
   }
 
@@ -2316,6 +2317,7 @@
     const a = window._pubArticles[idx];
     if (!a || (!a.bodyHtml && !a.youtube && !a.facebook)) return;
     const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;max-width:760px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;';
@@ -2348,7 +2350,7 @@
             <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#718096;margin-bottom:10px;">📘 From Facebook</div>
             <iframe src="${fbEmbed}" width="100%" height="480" style="border:none;overflow:hidden;border-radius:8px;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
           </div>` : ''}
-        <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="margin-top:32px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Back to News</button>
+        <button onclick="this.closest('.lgu-modal-overlay').remove()" style="margin-top:32px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Back to News</button>
       </div>`;
 
     overlay.appendChild(modal);
@@ -2658,6 +2660,7 @@
     const ytEmbed = getYouTubeEmbedUrl(e.youtube);
     const fbEmbed = getFacebookEmbedUrl(e.facebook);
     const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;max-width:700px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:32px 36px;';
@@ -2677,7 +2680,7 @@
         </div>` : ''}
       ${fbEmbed ? `
         <iframe src="${fbEmbed}" width="100%" height="480" style="border:none;overflow:hidden;border-radius:8px;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>` : ''}
-      <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="margin-top:24px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>`;
+      <button onclick="this.closest('.lgu-modal-overlay').remove()" style="margin-top:24px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>`;
     overlay.appendChild(modal);
     overlay.addEventListener('click', e2 => { if (e2.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
