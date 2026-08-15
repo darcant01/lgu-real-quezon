@@ -4196,6 +4196,16 @@ function renderEventsEditor() {
           <textarea oninput="events[${i}].description=this.value" placeholder="Brief description of the event…"
             style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.85rem;width:100%;outline:none;font-family:'Inter',sans-serif;min-height:60px;resize:vertical;">${escHtml(e.description||'')}</textarea>
         </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="font-size:0.68rem;color:var(--slate-l);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;">▶️ YouTube Link</label>
+          <input type="text" value="${escHtml(e.youtube||'')}" placeholder="Livestream or recap video URL" oninput="events[${i}].youtube=this.value"
+            style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.85rem;width:100%;outline:none;font-family:'Inter',sans-serif;">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="font-size:0.68rem;color:var(--slate-l);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;">📘 Facebook Link</label>
+          <input type="text" value="${escHtml(e.facebook||'')}" placeholder="Event post or video URL" oninput="events[${i}].facebook=this.value"
+            style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.85rem;width:100%;outline:none;font-family:'Inter',sans-serif;">
+        </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="toggle ${e.active?'on':''}" onclick="events[${i}].active=!events[${i}].active;this.classList.toggle('on')"></button>
           <span style="font-size:0.8rem;color:var(--slate);">Visible on site</span>
@@ -4210,7 +4220,7 @@ function renderEventsEditor() {
 }
 
 function addEvent() {
-  events.push({ title:'', date:'', time:'', venue:'', type:'', description:'', active:true });
+  events.push({ title:'', date:'', time:'', venue:'', type:'', description:'', youtube:'', facebook:'', active:true });
   renderEventsEditor();
   setTimeout(() => document.getElementById('events-editor').lastElementChild?.scrollIntoView({behavior:'smooth',block:'nearest'}), 50);
 }

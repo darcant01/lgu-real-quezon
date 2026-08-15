@@ -2576,13 +2576,15 @@
       .filter(e => e.active && new Date(e.date) >= now)
       .sort((a,b) => new Date(a.date) - new Date(b.date));
     if (!upcoming.length) return;
-    grid.innerHTML = upcoming.map(e => {
+    window._pubEvents = upcoming;
+    grid.innerHTML = upcoming.map((e, i) => {
       const d = new Date(e.date + 'T00:00:00');
       const month = d.toLocaleString('en-PH',{month:'short'}).toUpperCase();
       const day   = d.getDate();
       const year  = d.getFullYear();
+      const hasMedia = e.youtube || e.facebook;
       return `
-        <div class="event-card">
+        <div class="event-card" ${hasMedia ? `onclick="openEventModal_pub(${i})" style="cursor:pointer"` : ''}>
           <div class="event-date-box">
             <span class="ev-month">${month}</span>
             <span class="ev-day">${day}</span>
@@ -2595,10 +2597,43 @@
             <div class="event-meta">
               ${e.time  ? `<span>🕐 ${esc(e.time)}</span>`  : ''}
               ${e.venue ? `<span>📍 ${esc(e.venue)}</span>` : ''}
+              ${e.youtube ? `<span>▶️ Video</span>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
+  }
+
+  // Event video/FB modal on public site
+  function openEventModal_pub(idx) {
+    const e = window._pubEvents[idx];
+    if (!e || (!e.youtube && !e.facebook)) return;
+    const ytEmbed = getYouTubeEmbedUrl(e.youtube);
+    const fbEmbed = getFacebookEmbedUrl(e.facebook);
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:700px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:32px 36px;';
+    const d = new Date(e.date + 'T00:00:00');
+    modal.innerHTML = `
+      ${e.type ? `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(201,162,39,0.15);color:#C9A227;">${esc(e.type)}</span>` : ''}
+      <h1 style="font-family:'Playfair Display',serif;font-size:clamp(1.3rem,2.6vw,1.7rem);font-weight:900;color:#0F2419;line-height:1.2;margin:14px 0 10px;">${esc(e.title)}</h1>
+      <div style="font-size:0.85rem;color:#718096;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;">
+        <span>📅 ${formatDate(e.date)}</span>
+        ${e.time ? `<span>🕐 ${esc(e.time)}</span>` : ''}
+        ${e.venue ? `<span>📍 ${esc(e.venue)}</span>` : ''}
+      </div>
+      ${e.description ? `<p style="font-size:0.95rem;line-height:1.7;color:#4A5568;margin-bottom:24px;">${esc(e.description)}</p>` : ''}
+      ${ytEmbed ? `
+        <div style="position:relative;padding-top:56.25%;border-radius:8px;overflow:hidden;background:#000;margin-bottom:${fbEmbed?'20px':'8px'};">
+          <iframe src="${ytEmbed}" title="YouTube video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
+        </div>` : ''}
+      ${fbEmbed ? `
+        <iframe src="${fbEmbed}" width="100%" height="480" style="border:none;overflow:hidden;border-radius:8px;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>` : ''}
+      <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" style="margin-top:24px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>`;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', e2 => { if (e2.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   // ── GALLERY ───────────────────────────────────────
