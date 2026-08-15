@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Official website of the Municipality of Real, Quezon Province, Philippines.">
 <title>Municipality of Real — Quezon Province</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://llybnlehnagtaghtaouj.supabase.co">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -2175,12 +2179,39 @@
   // Supabase Storage public URLs (stored in shared lgu_kv / lgu_settings),
   // so nothing needs to be read from localStorage here anymore.
 
+  // ── PERFORMANCE: one bulk request instead of 15 separate ones ──────
+  // Every section used to call safeGet() independently, each firing its
+  // own network round trip to Supabase (.eq('key', key)). Even running in
+  // parallel, 15 separate requests queue up on slower/mobile connections.
+  // This fetches every content key the homepage needs in a single query,
+  // and safeGet() below reads from that cache first.
+  const ALL_CONTENT_KEYS = [
+    'lgu_alert','lgu_announcements','lgu_articles','lgu_barangays','lgu_charter',
+    'lgu_directory','lgu_documents','lgu_events','lgu_faq','lgu_gallery',
+    'lgu_hero_slides','lgu_officials','lgu_programs','lgu_services','lgu_settings',
+  ];
+  let _kvCache = null;
+  async function prefetchAllContent() {
+    try {
+      const { data, error } = await _sb.from('lgu_kv').select('key,value').in('key', ALL_CONTENT_KEYS);
+      if (error) throw error;
+      _kvCache = {};
+      (data || []).forEach(row => { _kvCache[row.key] = row.value; });
+    } catch {
+      _kvCache = {}; // fall back to per-key fetches in safeGet()
+    }
+  }
+
   async function safeGet(key) {
     // Image data lives in localStorage
     if (LOCAL_IMG_KEYS.has(key) || key.startsWith('lgu_art_img_')) {
       try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
     }
-    // Everything else comes from the live Supabase lgu_kv table
+    // Serve from the bulk-prefetched cache when available
+    if (_kvCache && Object.prototype.hasOwnProperty.call(_kvCache, key)) {
+      return _kvCache[key];
+    }
+    // Fallback: individual fetch (cache miss, or prefetch failed/hasn't run yet)
     try {
       const { data, error } = await _sb.from('lgu_kv').select('value').eq('key', key).maybeSingle();
       if (error) throw error;
@@ -2259,7 +2290,7 @@
       const icon = TAG_ICONS[a.tag] || '📄';
       const clickable = a.bodyHtml || a.youtube || a.facebook;
       const imgInner = a.cover
-        ? `<img src="${a.cover}" alt="${esc(a.title)}" style="width:100%;height:100%;object-fit:cover;">`
+        ? `<img src="${a.cover}" alt="${esc(a.title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`
         : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;font-size:28px;">${icon}</div>`;
       return `
         <div style="display:flex;gap:16px;align-items:center;padding:14px 8px;border-bottom:1px solid #EAE5DB;${clickable?'cursor:pointer;':''}"
@@ -2496,7 +2527,7 @@
     grid.innerHTML = officials.map((o, i) => {
       const isMayor = o.role && o.role.toLowerCase().includes('mayor') && !o.role.toLowerCase().includes('vice');
       const photoHtml = o.photo
-        ? `<img src="${o.photo}" alt="${esc(o.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        ? `<img src="${o.photo}" alt="${esc(o.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
         : (o.emoji || (isMayor ? '👨‍💼' : '🧑‍💼'));
 
       if (isMayor) {
@@ -2684,7 +2715,7 @@
     _galleryPhotos = photos;
     grid.innerHTML = photos.map((p,i) => `
       <div class="gallery-item" onclick="openLightbox(${i})">
-        <img src="${p.image}" alt="${esc(p.caption||'')}">
+        <img src="${p.image}" alt="${esc(p.caption||'')}" loading="lazy">
         <div class="gallery-overlay">
           <div class="gallery-caption">${esc(p.caption||'')}</div>
         </div>
@@ -2882,6 +2913,7 @@
 
   // ── INIT ──────────────────────────────────────────
   (async () => {
+    await prefetchAllContent(); // one request instead of 15
     await Promise.all([
       loadTicker(), loadNews(), loadHeroSlides(), loadOfficials(),
       loadAlert(), loadEvents(), loadGallery(), loadServices(), loadPrograms(),
