@@ -555,10 +555,6 @@
 
     /* Event cards */
     .event-card { flex-direction: column; gap: 12px; }
-    .event-date-box { width: 100%; display: flex; align-items: center; gap: 10px; border-radius: 6px; padding: 8px 14px; }
-    .ev-month { font-size: 0.7rem; }
-    .ev-day { font-size: 1.2rem; }
-    .ev-year { font-size: 0.6rem; }
 
     /* Officials modal */
     .modal { width: 95vw; max-width: 95vw; }
@@ -614,6 +610,15 @@
   .event-date-box .ev-month { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; display: block; }
   .event-date-box .ev-day   { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; line-height: 1; display: block; }
   .event-date-box .ev-year  { font-size: 0.55rem; display: block; opacity: 0.7; }
+  @media (max-width: 600px) {
+    .event-date-box {
+      flex-shrink: 0; width: auto; display: inline-flex; align-items: baseline; gap: 6px;
+      border-radius: 20px; padding: 6px 14px;
+    }
+    .event-date-box .ev-month { font-size: 0.62rem; display: inline; }
+    .event-date-box .ev-day   { font-size: 1rem; display: inline; }
+    .event-date-box .ev-year  { font-size: 0.6rem; display: inline; opacity: 0.7; }
+  }
   .event-info { flex: 1; }
   .event-info h3 { font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 600; color: white; margin-bottom: 6px; line-height: 1.3; }
   .event-info p { font-size: 0.78rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
