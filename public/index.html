@@ -613,8 +613,16 @@
     background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
     border-radius: 10px; padding: 22px; display: flex; gap: 16px;
     transition: background 0.2s, border-color 0.2s;
+    position: relative;
   }
   .event-card:hover { background: linear-gradient(145deg, rgba(201,162,39,0.18) 0%, rgba(201,162,39,0.06) 100%); border-color: rgba(201,162,39,0.45); transform: translateY(-5px) scale(1.01); box-shadow: 0 16px 40px rgba(0,0,0,0.25), 0 0 24px rgba(201,162,39,0.08), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .live-now-badge {
+    position: absolute; top: -10px; right: 16px; z-index: 2;
+    background: #C0392B; color: white; font-size: 0.68rem; font-weight: 800;
+    letter-spacing: 0.06em; padding: 5px 12px; border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(192,57,43,0.5), 0 0 0 3px var(--forest);
+    animation: pulse-alert 1.5s ease-in-out infinite;
+  }
   .event-date-box {
     flex-shrink: 0; width: 54px; text-align: center;
     background: var(--gold); border-radius: 8px; padding: 6px 4px;
@@ -2671,6 +2679,47 @@
   }
 
   // ── EVENTS ────────────────────────────────────────
+  // ── LIVE NOW detection for events with a video link ────
+  function parseTimeOfDay(str) {
+    if (!str) return null;
+    const m = str.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = m[2] ? parseInt(m[2], 10) : 0;
+    const ampm = m[3] ? m[3].toUpperCase() : null;
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    if (h > 23 || min > 59) return null;
+    return { h, min };
+  }
+  function getEventLiveWindow(ev) {
+    if (!ev.date || !ev.time) return null;
+    // Supports a single time ("9:00 AM") with a default 3-hour window,
+    // or an explicit range ("9:00 AM - 12:00 PM" / "9:00 AM to 12:00 PM").
+    const parts = ev.time.split(/[-–—]|(?:\bto\b)/i).map(s => s.trim()).filter(Boolean);
+    const startTod = parseTimeOfDay(parts[0]);
+    if (!startTod) return null;
+    const start = new Date(ev.date + 'T00:00:00');
+    start.setHours(startTod.h, startTod.min, 0, 0);
+    let end;
+    const endTod = parts[1] ? parseTimeOfDay(parts[1]) : null;
+    if (endTod) {
+      end = new Date(ev.date + 'T00:00:00');
+      end.setHours(endTod.h, endTod.min, 0, 0);
+      if (end <= start) end.setDate(end.getDate() + 1); // range crosses midnight
+    } else {
+      end = new Date(start.getTime() + 3 * 60 * 60 * 1000); // default 3-hour window
+    }
+    return { start, end };
+  }
+  function isEventLiveNow(ev) {
+    if (!ev.youtube && !ev.facebook) return false;
+    const win = getEventLiveWindow(ev);
+    if (!win) return false;
+    const now = new Date();
+    return now >= win.start && now <= win.end;
+  }
+
   async function loadEvents() {
     const events = await safeGet('lgu_events');
     const grid = document.getElementById('events-grid');
@@ -2681,14 +2730,26 @@
       .sort((a,b) => new Date(a.date) - new Date(b.date));
     if (!upcoming.length) return;
     window._pubEvents = upcoming;
+    renderEventsGrid();
+    // Re-check every 30s so a LIVE NOW badge appears/disappears without a page refresh
+    if (window._eventsLiveTimer) clearInterval(window._eventsLiveTimer);
+    window._eventsLiveTimer = setInterval(renderEventsGrid, 30000);
+  }
+
+  function renderEventsGrid() {
+    const grid = document.getElementById('events-grid');
+    const upcoming = window._pubEvents;
+    if (!grid || !upcoming) return;
     grid.innerHTML = upcoming.map((e, i) => {
       const d = new Date(e.date + 'T00:00:00');
       const month = d.toLocaleString('en-PH',{month:'short'}).toUpperCase();
       const day   = d.getDate();
       const year  = d.getFullYear();
       const hasMedia = e.youtube || e.facebook;
+      const live = isEventLiveNow(e);
       return `
         <div class="event-card" ${hasMedia ? `onclick="openEventModal_pub(${i})" style="cursor:pointer"` : ''}>
+          ${live ? `<div class="live-now-badge">🔴 LIVE NOW</div>` : ''}
           <div class="event-date-box">
             <span class="ev-month">${month}</span>
             <span class="ev-day">${day}</span>
@@ -2701,7 +2762,7 @@
             <div class="event-meta">
               ${e.time  ? `<span>🕐 ${esc(e.time)}</span>`  : ''}
               ${e.venue ? `<span>📍 ${esc(e.venue)}</span>` : ''}
-              ${e.youtube ? `<span>▶️ Video</span>` : ''}
+              ${!live && e.youtube ? `<span>▶️ Video</span>` : ''}
             </div>
           </div>
         </div>`;
@@ -2714,6 +2775,7 @@
     if (!e || (!e.youtube && !e.facebook)) return;
     const ytEmbed = getYouTubeEmbedUrl(e.youtube);
     const fbEmbed = getFacebookEmbedUrl(e.facebook);
+    const live = isEventLiveNow(e);
     const overlay = document.createElement('div');
     overlay.className = 'lgu-modal-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
@@ -2721,6 +2783,7 @@
     modal.style.cssText = 'background:white;border-radius:12px;max-width:700px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:32px 36px;';
     const d = new Date(e.date + 'T00:00:00');
     modal.innerHTML = `
+      ${live ? `<div class="live-now-badge" style="position:static;display:inline-flex;margin-bottom:12px;">🔴 LIVE NOW</div>` : ''}
       ${e.type ? `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(201,162,39,0.15);color:#C9A227;">${esc(e.type)}</span>` : ''}
       <h1 style="font-family:'Playfair Display',serif;font-size:clamp(1.3rem,2.6vw,1.7rem);font-weight:900;color:#0F2419;line-height:1.2;margin:14px 0 10px;">${esc(e.title)}</h1>
       <div style="font-size:0.85rem;color:#718096;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;">
