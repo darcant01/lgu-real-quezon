@@ -1486,6 +1486,14 @@
 <!-- Favicon — replaced dynamically if a custom one is set in Admin > Settings -->
 <link rel="icon" id="site-favicon-link" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
 
+<!-- PWA: installable on mobile and desktop -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1A3C2E">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LGU Real">
+
 <!-- Supabase — live database connection for LGU Real -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
@@ -1564,6 +1572,7 @@
     </li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
+    <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
@@ -1634,6 +1643,7 @@
 
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
+  <a href="javascript:void(0)" id="install-app-drawer-link" onclick="closeMobileNav();installApp()" style="display:none;">📲 Install This App</a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
   <a href="#" onclick="closeMobileNav(); openAdminModal(event)" style="color:rgba(255,255,255,0.45);font-size:0.82rem;">🔐 Admin Login</a>
 </div>
@@ -3541,6 +3551,34 @@
     document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
     if (!wasOpen) item.classList.add('open');
   }
+
+  // ── PWA: installable app ────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+  let _deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _deferredInstallPrompt = e;
+    const navBtn    = document.getElementById('install-app-li');
+    const drawerBtn = document.getElementById('install-app-drawer-link');
+    if (navBtn)    navBtn.style.display = '';
+    if (drawerBtn) drawerBtn.style.display = 'flex';
+  });
+  function installApp() {
+    if (!_deferredInstallPrompt) return;
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.finally(() => { _deferredInstallPrompt = null; });
+  }
+  window.addEventListener('appinstalled', () => {
+    const navBtn    = document.getElementById('install-app-li');
+    const drawerBtn = document.getElementById('install-app-drawer-link');
+    if (navBtn)    navBtn.style.display = 'none';
+    if (drawerBtn) drawerBtn.style.display = 'none';
+    _deferredInstallPrompt = null;
+  });
 
   // ── INIT ──────────────────────────────────────────
   (async () => {
