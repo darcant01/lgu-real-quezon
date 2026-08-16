@@ -16,6 +16,12 @@ DROP POLICY IF EXISTS "push_sub_public_insert" ON lgu_push_subscriptions;
 CREATE POLICY "push_sub_public_insert" ON lgu_push_subscriptions
   FOR INSERT WITH CHECK (true);
 
+-- The app uses upsert() (insert-or-update by endpoint), so UPDATE needs
+-- its own policy too — INSERT alone only covers the first save.
+DROP POLICY IF EXISTS "push_sub_public_update" ON lgu_push_subscriptions;
+CREATE POLICY "push_sub_public_update" ON lgu_push_subscriptions
+  FOR UPDATE USING (true) WITH CHECK (true);
+
 -- Visitors can remove their own subscription (e.g. if they disable alerts)
 -- Matching is done by endpoint, which only that browser knows.
 DROP POLICY IF EXISTS "push_sub_public_delete" ON lgu_push_subscriptions;
