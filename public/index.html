@@ -374,8 +374,7 @@
   .mayor-info p { font-size: 0.8rem; color: rgba(255,255,255,0.6); line-height: 1.5; }
 
   /* PROGRAMS */
-  .programs { padding: 90px 8%; background: var(--cream); }
-  .programs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 44px; }
+  .programs { padding: 90px 8%; background: var(--cream); }  .programs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 44px; }
   .program-card { background: linear-gradient(155deg, #FFFFFF 0%, #F8F4EC 100%); border-radius: 14px; padding: 32px 28px; border: 1px solid rgba(26,60,46,0.06); position: relative; overflow: hidden; box-shadow: 0 4px 16px rgba(26,60,46,0.06), 0 1px 0 rgba(255,255,255,1) inset, 4px 4px 0 rgba(26,60,46,0.04); transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s; }
   .program-num { position: absolute; top: 20px; right: 24px; font-family: 'Playfair Display', serif; font-size: 3.5rem; font-weight: 900; color: rgba(26,60,46,0.05); line-height: 1; }
   .program-icon { font-size: 32px; margin-bottom: 16px; }
@@ -529,7 +528,7 @@
      off-screen — waiting until the general 900px content breakpoint left a
      dead zone (~900-1150px window width) where extra nav links vanished
      with no scrollbar and no visual indication anything was missing. */
-  @media (max-width: 1150px) {
+  @media (max-width: 1220px) {
     .nav-links        { display: none; }
     .nav-hamburger    { display: flex; }
     .mobile-nav-drawer { display: flex; }
@@ -575,6 +574,9 @@
     .programs-grid { grid-template-columns: 1fr 1fr; }
     .events { padding: 60px 5%; }
     .events-grid { grid-template-columns: 1fr; }
+    .tourism { padding: 60px 5%; }
+    .attractions-grid { grid-template-columns: 1fr 1fr; }
+    .tourism-info-grid { grid-template-columns: 1fr; gap: 16px; }
     .gallery { padding: 60px 5%; }
     .gallery-grid { grid-template-columns: 1fr 1fr 1fr; }
     .transparency { padding: 60px 5%; }
@@ -620,6 +622,7 @@
     /* Sections — single column on mobile */
     .services-grid { grid-template-columns: 1fr; }
     .programs-grid { grid-template-columns: 1fr; }
+    .attractions-grid { grid-template-columns: 1fr; }
     .officials-grid { grid-template-columns: 1fr 1fr; }
     .mayor-card { grid-column: span 2; flex-direction: column !important; text-align: center; }
     .mayor-avatar { margin: 0 auto; }
@@ -729,6 +732,49 @@
   .event-meta span { font-size: 0.7rem; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 4px; }
   .event-type-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; background: rgba(201,162,39,0.2); color: var(--gold); margin-bottom: 6px; }
   .events-empty { text-align: center; padding: 40px; color: rgba(255,255,255,0.35); font-size: 0.88rem; }
+
+  /* ── TOURISM SECTION ── */
+  .tourism { padding: 90px 8%; background: var(--white); }
+  .attractions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; margin-top: 40px; }
+  .attraction-card {
+    background: var(--cream); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.06);
+    transition: transform 0.25s, box-shadow 0.25s;
+    text-decoration: none; display: block; color: inherit;
+  }
+  .attraction-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.12); }
+  .attraction-photo {
+    width: 100%; height: 170px; object-fit: cover; display: block;
+    background: linear-gradient(135deg, var(--forest), var(--forest-l));
+  }
+  .attraction-photo-fallback {
+    width: 100%; height: 170px; display: flex; align-items: center; justify-content: center;
+    font-size: 42px; background: linear-gradient(135deg, var(--forest), var(--forest-l));
+  }
+  .attraction-body { padding: 18px 20px; }
+  .attraction-category {
+    display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 20px;
+    background: rgba(201,162,39,0.15); color: var(--gold); margin-bottom: 10px;
+  }
+  .attraction-body h3 { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: var(--forest-d); margin-bottom: 6px; line-height: 1.3; }
+  .attraction-body p { font-size: 0.85rem; color: var(--slate); line-height: 1.6; }
+
+  .tourism-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 48px; }
+  .tourism-info-card {
+    background: var(--cream); border-radius: 12px; padding: 28px 30px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .tourism-info-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .tourism-info-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(145deg, var(--forest), var(--forest-l));
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .tourism-info-header h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--forest-d); }
+  .tourism-info-body { font-size: 0.88rem; line-height: 1.8; color: var(--slate); }
+  .tourism-info-body p { margin-bottom: 12px; }
+  .tourism-info-body p:last-child { margin-bottom: 0; }
 
   /* ── GALLERY SECTION ── */
   .gallery { padding: 90px 8%; background: var(--cream); }
@@ -1462,6 +1508,7 @@
     <li><a href="#news">News</a></li>
     <li><a href="#officials">Officials</a></li>
     <li><a href="#programs">Programs</a></li>
+    <li><a href="#tourism">Tourism</a></li>
     <li><a href="#events">Events</a></li>
     <li><a href="#gallery">Gallery</a></li>
     <li class="nav-dropdown">
@@ -1520,6 +1567,7 @@
   <a href="#programs"      onclick="closeMobileNav()">📋 Programs</a>
   <div class="drawer-section">Community</div>
   <a href="#events"        onclick="closeMobileNav()">📅 Events Calendar</a>
+  <a href="#tourism"       onclick="closeMobileNav()">🏖️ Tourism & Attractions</a>
   <a href="#gallery"       onclick="closeMobileNav()">🖼️ Photo Gallery</a>
   <a href="#barangays"     onclick="closeMobileNav()">🗺️ Barangay Profiles</a>
   <a href="#directory"     onclick="closeMobileNav()">📞 Directory</a>
@@ -1827,6 +1875,36 @@
   <p class="section-sub">Stay informed about municipal activities, celebrations, and public engagements.</p>
   <div class="events-grid" id="events-grid">
     <div class="events-empty">No upcoming events posted yet.</div>
+  </div>
+</section>
+
+<!-- TOURISM SECTION -->
+<section class="tourism" id="tourism">
+  <div class="section-label">Discover Real</div>
+  <h2 class="section-title">Tourism & Attractions</h2>
+  <p class="section-sub">From waterfalls in the Sierra Madre to beaches along the Pacific, plan your visit to Real, Quezon.</p>
+
+  <div class="attractions-grid" id="attractions-grid">
+    <p style="color:var(--slate-l);font-size:0.88rem;grid-column:1/-1;">No attractions posted yet.</p>
+  </div>
+
+  <div class="tourism-info-grid">
+    <div class="tourism-info-card">
+      <div class="tourism-info-header"><span class="tourism-info-icon">🗓️</span><h3>Suggested Itinerary</h3></div>
+      <div class="tourism-info-body" id="tourism-itinerary-body">
+        <p style="color:var(--slate-l);">Itinerary suggestions coming soon.</p>
+      </div>
+    </div>
+    <div class="tourism-info-card">
+      <div class="tourism-info-header"><span class="tourism-info-icon">💡</span><h3>Travel Tips</h3></div>
+      <div class="tourism-info-body" id="tourism-tips-body">
+        <p style="color:var(--slate-l);">Travel tips coming soon.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:36px;">
+    <a href="#gallery" class="btn-primary" style="font-size:0.85rem;padding:12px 28px;">📷 View Full Photo Gallery →</a>
   </div>
 </section>
 
@@ -2374,6 +2452,7 @@
     'lgu_directory','lgu_documents','lgu_events','lgu_faq','lgu_gallery',
     'lgu_hero_slides','lgu_officials','lgu_programs','lgu_services','lgu_settings',
     'lgu_history','lgu_mission_vision','lgu_mandates','lgu_gad',
+    'lgu_attractions','lgu_tourism_itinerary','lgu_tourism_tips',
   ];
   let _kvCache = null;
   async function prefetchAllContent() {
@@ -2888,6 +2967,54 @@
       </div>`).join('');
   }
 
+  // ── TOURISM & ATTRACTIONS ──────────────────────────
+  async function loadTourism() {
+    const [attractions, itinerary, tips] = await Promise.all([
+      safeGet('lgu_attractions'), safeGet('lgu_tourism_itinerary'), safeGet('lgu_tourism_tips')
+    ]);
+    if (attractions && attractions.length) {
+      const grid = document.getElementById('attractions-grid');
+      grid.innerHTML = attractions.map(a => `
+        <a href="javascript:void(0)" class="attraction-card" onclick="openAttractionModal('${esc(a.name||'').replace(/'/g,"\\'")}')">
+          ${a.photo
+            ? `<img src="${esc(a.photo)}" alt="${esc(a.name||'')}" class="attraction-photo" loading="lazy">`
+            : `<div class="attraction-photo-fallback">${esc(a.icon||'📍')}</div>`}
+          <div class="attraction-body">
+            ${a.category ? `<span class="attraction-category">${esc(a.category)}</span>` : ''}
+            <h3>${esc(a.name||'')}</h3>
+            <p>${esc(a.description||'')}</p>
+          </div>
+        </a>`).join('');
+      window._attractions = attractions;
+    }
+    if (itinerary && itinerary.body) {
+      document.getElementById('tourism-itinerary-body').innerHTML = itinerary.body;
+    }
+    if (tips && tips.body) {
+      document.getElementById('tourism-tips-body').innerHTML = tips.body;
+    }
+  }
+  function openAttractionModal(name) {
+    const a = (window._attractions || []).find(x => x.name === name);
+    if (!a) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:640px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;';
+    modal.innerHTML = `
+      ${a.photo ? `<img src="${esc(a.photo)}" alt="${esc(a.name)}" style="width:100%;height:280px;object-fit:cover;display:block;">` : ''}
+      <div style="padding:32px 36px;">
+        ${a.category ? `<span class="attraction-category">${esc(a.category)}</span>` : ''}
+        <h1 style="font-family:'Playfair Display',serif;font-size:clamp(1.3rem,2.8vw,1.7rem);font-weight:900;color:#0F2419;margin:12px 0 14px;line-height:1.2;">${esc(a.name)}</h1>
+        <p style="font-size:0.95rem;line-height:1.75;color:#4A5568;">${esc(a.description||'')}</p>
+        <button onclick="this.closest('.lgu-modal-overlay').remove()" style="margin-top:24px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>
+      </div>`;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
   // ── EMERGENCY ALERT ───────────────────────────────
   async function loadAlert() {
     const alert = await safeGet('lgu_alert');
@@ -3284,7 +3411,7 @@
     await prefetchAllContent(); // one request instead of 15
     await Promise.all([
       loadTicker(), loadNews(), loadHeroSlides(), loadOfficials(),
-      loadAlert(), loadEvents(), loadGallery(), loadServices(), loadPrograms(),
+      loadAlert(), loadEvents(), loadGallery(), loadServices(), loadPrograms(), loadTourism(),
       loadBranding(), loadDocuments(), loadCharter(), loadBarangays(), loadDirectory(), loadFAQ()
     ]);
   })();

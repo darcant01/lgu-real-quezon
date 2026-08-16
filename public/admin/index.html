@@ -1228,6 +1228,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('officials', this)"><span class="icon">🏛️</span> Officials</button>
     <button class="nav-item" onclick="switchPanel('services', this)"><span class="icon">🛎️</span> Services</button>
     <button class="nav-item" onclick="switchPanel('programs', this)"><span class="icon">📈</span> Programs</button>
+    <button class="nav-item" onclick="switchPanel('tourism', this)"><span class="icon">🏖️</span> Tourism</button>
     <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
@@ -1429,6 +1430,36 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="programs-editor-body">
           <p style="color:var(--slate-l);font-size:0.85rem;">Loading programs…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOURISM & ATTRACTIONS -->
+    <div class="panel" id="panel-tourism">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>🏖️ Attractions</h3><p>Photo cards shown in the "Tourism & Attractions" homepage section.</p></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="addAttraction()">+ Add Attraction</button>
+            <button class="btn btn-gold" onclick="saveAttractions()">💾 Save</button>
+          </div>
+        </div>
+        <div class="card-body" id="attractions-editor-body">
+          <p style="color:var(--slate-l);font-size:0.85rem;">Loading attractions…</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>🗓️ Suggested Itinerary</h3><p>Shown on the Tourism section as a highlighted panel.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-tourism_itinerary-body" placeholder="e.g.&#10;Day 1: Morning at Balagbag Falls, lunch in Poblacion, afternoon at Ungos Port.&#10;&#10;Day 2: Sunrise at Tignoan Beach, hike to Tipuan Falls." style="min-height:160px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('tourism_itinerary')">Save Itinerary</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>💡 Travel Tips</h3><p>Shown on the Tourism section as a highlighted panel.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Content</label><textarea id="ap-tourism_tips-body" placeholder="e.g.&#10;Best time to visit is November to May (dry season).&#10;&#10;Jeepneys and vans to Real leave regularly from Lucena City." style="min-height:160px;"></textarea></div>
+          <button class="btn btn-primary" onclick="saveAboutPage('tourism_tips')">Save Travel Tips</button>
         </div>
       </div>
     </div>
@@ -2401,10 +2432,10 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','aboutpages','settings','users','audit'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','settings','users','audit'],
   editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
   compliance: ['dashboard','transparency','charter'],
-  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs'],
+  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism'],
 };
 const ROLE_LABELS = { super:'Super Admin', editor:'Editor (PIO)', compliance:'Compliance Officer', viewer:'Viewer' };
 const ROLE_CSS    = { super:'role-super', editor:'role-editor', compliance:'role-compliance', viewer:'role-viewer' };
@@ -3036,7 +3067,7 @@ async function loadAll() {
   await Promise.all([
     loadHeroSlides(), loadOfficialsAdmin(), loadAlert(),
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
-    loadAboutPagesAdmin(),
+    loadAttractionsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
     loadFAQAdmin(), loadAdminUsers(), loadAuditTrail()
   ]);
@@ -3051,7 +3082,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', aboutpages:'About Us Pages', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -4562,9 +4593,103 @@ async function savePrograms() {
 }
 
 // ═══════════════════════════════════════════════
+//  TOURISM & ATTRACTIONS
+// ═══════════════════════════════════════════════
+let attractions = [];
+const ATTRACTION_CATEGORIES = ['Waterfalls', 'Beaches', 'Heritage', 'Nature & Hiking', 'Ports & Islands', 'Food & Local Products'];
+
+async function loadAttractionsAdmin() {
+  attractions = await sharedGet('lgu_attractions') || [];
+  renderAttractionsEditor();
+}
+
+function renderAttractionsEditor() {
+  const el = document.getElementById('attractions-editor-body');
+  if (!attractions.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No attractions yet. Click + Add Attraction.</p>'; return; }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+    ${attractions.map((a,i) => `
+      <div style="border:1.5px solid var(--border);border-radius:8px;padding:16px;background:var(--bg);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:0.72rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;">Attraction #${i+1}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteAttraction(${i})" title="Remove">🗑</button>
+        </div>
+        <div style="width:100%;height:120px;border-radius:6px;overflow:hidden;background:linear-gradient(135deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;margin-bottom:10px;cursor:pointer;position:relative;" onclick="document.getElementById('attraction-photo-input-${i}').click()">
+          ${a.photo ? `<img src="${a.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:32px;">${escHtml(a.icon||'📍')}</span>`}
+          <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.6);color:white;font-size:0.65rem;padding:3px 8px;border-radius:12px;">📷 ${a.photo?'Change':'Upload'}</div>
+        </div>
+        <input type="file" id="attraction-photo-input-${i}" accept="image/*" style="display:none" onchange="handleAttractionPhotoUpload(event, ${i})">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Fallback Emoji (shown if no photo)</div>
+            <input type="text" value="${escHtml(a.icon||'')}" maxlength="4" style="width:60px;border:1px solid var(--border);border-radius:5px;padding:6px 8px;font-size:1rem;text-align:center;outline:none;" oninput="attractions[${i}].icon=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Name</div>
+            <input type="text" value="${escHtml(a.name||'')}" placeholder="e.g. Balagbag Falls" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.85rem;outline:none;font-family:'Inter',sans-serif;" oninput="attractions[${i}].name=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Category</div>
+            <select oninput="attractions[${i}].category=this.value" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+              ${ATTRACTION_CATEGORIES.map(c=>`<option value="${c}" ${a.category===c?'selected':''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Description</div>
+            <textarea style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;outline:none;font-family:'Inter',sans-serif;min-height:64px;resize:vertical;" oninput="attractions[${i}].description=this.value">${escHtml(a.description||'')}</textarea>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function addAttraction() { attractions.push({ icon:'📍', name:'', category:'Nature & Hiking', description:'', photo:'' }); renderAttractionsEditor(); }
+function deleteAttraction(i) {
+  if(!confirm('Remove this attraction?'))return;
+  const removed = attractions[i];
+  attractions.splice(i,1); renderAttractionsEditor(); showToast('Removed');
+  if (removed?.photo && removed.photo.includes('/lgu-images/')) {
+    try {
+      const path = removed.photo.split('/lgu-images/')[1];
+      if (path) _sb.storage.from('lgu-images').remove([decodeURIComponent(path)]);
+    } catch {}
+  }
+}
+function handleAttractionPhotoUpload(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!checkFileSize(file, 'image')) { event.target.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    openResizeModal(e.target.result, () => {
+      const btn = Array.from(document.querySelectorAll('.preset-btn')).find(b=>b.textContent.includes('Full Width (body)'));
+      if (btn) btn.click();
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading photo…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'attractions/');
+        attractions[idx].photo = publicUrl;
+        renderAttractionsEditor();
+        showToast(`Photo set — ${w}×${h}px ✓`);
+      } catch (err) {
+        console.error('[attraction photo upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+async function saveAttractions() {
+  const ok = await sharedSet('lgu_attractions', attractions);
+  if (ok) showToast(`Attractions saved — ${attractions.length} card${attractions.length!==1?'s':''} ✓`);
+  else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
 //  ABOUT US PAGES (History, Mission & Vision, Mandates, GAD)
 // ═══════════════════════════════════════════════
-const ABOUT_PAGE_KEYS = ['history', 'mission_vision', 'mandates', 'gad'];
+const ABOUT_PAGE_KEYS = ['history', 'mission_vision', 'mandates', 'gad', 'tourism_itinerary', 'tourism_tips'];
 
 // Very small, safe plain-text -> HTML converter for these simple pages
 // (not the full rich editor used for Articles): escapes everything, then
