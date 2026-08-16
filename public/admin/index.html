@@ -4255,7 +4255,16 @@ function updateAlertPreview() {
   }
 }
 
+// Shared secret sent to /api/send-alert-push — must match the
+// PUSH_TRIGGER_SECRET environment variable set in the Vercel project.
+// This isn't a strong security boundary (it's visible in this file's
+// source), just a basic guard against random/accidental calls to the
+// endpoint; the endpoint itself only ever sends the alert text, no
+// sensitive data.
+const PUSH_TRIGGER_SECRET = 'CHANGE_ME_TO_MATCH_VERCEL_ENV_VAR';
+
 async function saveAlert() {
+  const prevFingerprint = (alertData.active ? (alertData.title||'') + '|' + (alertData.body||'') : '');
   alertData = {
     active: document.getElementById('alert-active-toggle').classList.contains('on'),
     title:  document.getElementById('alert-title-input').value.trim(),
@@ -4265,6 +4274,30 @@ async function saveAlert() {
   if (ok) {
     auditLog('save', `Emergency alert ${alertData.active?'ACTIVATED':'deactivated'}: "${alertData.title}"`, _currentUser);
     showToast(alertData.active ? '🚨 Alert is now LIVE on the site' : 'Alert deactivated ✓', alertData.active ? 'error' : 'success');
+
+    // Push a notification to every device that enabled alerts — but only
+    // when this is a genuinely new/changed active alert, not a re-save of
+    // the same one (avoids spamming subscribers on every unrelated edit).
+    const newFingerprint = alertData.active ? (alertData.title||'') + '|' + (alertData.body||'') : '';
+    if (alertData.active && newFingerprint !== prevFingerprint) {
+      try {
+        const resp = await fetch('/api/send-alert-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Push-Secret': PUSH_TRIGGER_SECRET },
+          body: JSON.stringify({ title: alertData.title || 'Emergency Alert', body: alertData.body || '' }),
+        });
+        const result = await resp.json();
+        if (resp.ok) {
+          showToast(`Push sent to ${result.sent||0} device${result.sent===1?'':'s'} ✓`);
+        } else {
+          console.warn('[push]', result.error);
+          showToast('Alert saved, but push notifications failed to send — check server setup', 'error');
+        }
+      } catch (err) {
+        console.warn('[push]', err);
+        showToast('Alert saved, but push notifications failed to send', 'error');
+      }
+    }
   } else showToast('Save failed', 'error');
 }
 

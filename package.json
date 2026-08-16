@@ -1,0 +1,10 @@
+{
+  "name": "lgu-real-quezon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Municipality of Real, Quezon Province — official website (static site + serverless push API)",
+  "dependencies": {
+    "web-push": "^3.6.7",
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

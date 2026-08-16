@@ -1573,6 +1573,7 @@
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
     <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
+    <li><a href="javascript:void(0)" class="nav-admin-btn" onclick="enableEmergencyAlerts()" title="Get notified of emergency alerts on this device"><span class="js-alert-toggle-label">🔔 Get Alerts</span></a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
@@ -1644,6 +1645,7 @@
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
   <a href="javascript:void(0)" id="install-app-drawer-link" onclick="closeMobileNav();installApp()" style="display:none;">📲 Install This App</a>
+  <a href="javascript:void(0)" onclick="closeMobileNav();enableEmergencyAlerts()"><span class="js-alert-toggle-label">🔔 Get Alerts</span></a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
   <a href="#" onclick="closeMobileNav(); openAdminModal(event)" style="color:rgba(255,255,255,0.45);font-size:0.82rem;">🔐 Admin Login</a>
 </div>
@@ -3168,6 +3170,15 @@
     document.getElementById('alert-title').textContent = alert.title || '';
     document.getElementById('alert-body').textContent  = alert.body  || '';
     document.getElementById('alert-banner').classList.add('active');
+
+    // Play the alert sound once per distinct active alert — not on every
+    // page load/reload, only the first time this specific alert is seen.
+    const fingerprint = (alert.title || '') + '|' + (alert.body || '');
+    const lastSeen = localStorage.getItem('lgu_last_alert_seen');
+    if (fingerprint.trim() !== '|' && fingerprint !== lastSeen) {
+      localStorage.setItem('lgu_last_alert_seen', fingerprint);
+      playAlertSound();
+    }
   }
 
   // ── EVENTS ────────────────────────────────────────
@@ -3579,6 +3590,87 @@
     if (drawerBtn) drawerBtn.style.display = 'none';
     _deferredInstallPrompt = null;
   });
+
+  // ── EMERGENCY ALERT PUSH NOTIFICATIONS ──────────────
+  // Public VAPID key — safe to embed client-side (it's the whole point
+  // of the public/private VAPID key split; only the private key,
+  // held server-side in api/send-alert-push.js, must stay secret).
+  const VAPID_PUBLIC_KEY = 'BPMQAN03k2rfU7FY_JUH0Hz7GHJrpJnTFOCBR2EicrqqISeJe0ZtjePAspaVS274DF6nWD-9xSeSYouEax58GwY';
+
+  const _alertAudio = new Audio('/alert-sound.wav');
+  function playAlertSound() {
+    try { _alertAudio.currentTime = 0; _alertAudio.play().catch(() => {}); } catch {}
+  }
+  // A push arrived while a tab was open — the service worker already
+  // showed the system notification; also play our custom sound here,
+  // since native notifications can't carry a custom sound file.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'lgu-alert-push') playAlertSound();
+    });
+  }
+
+  function _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const arr = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+    return arr;
+  }
+
+  function _updateAlertBtnUI() {
+    const enabled = Notification && Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
+    document.querySelectorAll('.js-alert-toggle-label').forEach(el => {
+      el.textContent = enabled ? '🔔 Alerts On' : '🔔 Get Alerts';
+    });
+  }
+
+  async function enableEmergencyAlerts() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      alert('Push notifications aren\'t supported on this browser. Try Chrome, Edge, or Firefox.');
+      return;
+    }
+    // Already enabled — clicking again offers to turn it off
+    if (Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1') {
+      if (confirm('Turn off emergency alert notifications on this device?')) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            await _sb.from('lgu_push_subscriptions').delete().eq('endpoint', sub.endpoint);
+            await sub.unsubscribe();
+          }
+        } catch {}
+        localStorage.removeItem('lgu_alerts_enabled');
+        _updateAlertBtnUI();
+      }
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { _updateAlertBtnUI(); return; }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      const raw = sub.toJSON();
+      await _sb.from('lgu_push_subscriptions').upsert(
+        { endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth },
+        { onConflict: 'endpoint' }
+      );
+      localStorage.setItem('lgu_alerts_enabled', '1');
+      _updateAlertBtnUI();
+    } catch (err) {
+      console.error('[push subscribe]', err);
+      alert('Could not enable alerts — please try again.');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', _updateAlertBtnUI);
 
   // ── INIT ──────────────────────────────────────────
   (async () => {
