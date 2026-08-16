@@ -2286,6 +2286,31 @@
   });
 
   // ── MOBILE NAV ────────────────────────────────────
+  // Directly pin the bottom nav to the real visible screen using
+  // visualViewport, instead of relying on CSS position:fixed;bottom:0 —
+  // Chrome mobile's collapsible address bar can cause fixed-bottom
+  // elements to mis-anchor (observed: the bar rendering stuck near the
+  // top instead of the true bottom). This bypasses that entirely by
+  // computing the real pixel offset directly.
+  function pinBottomNavToViewport() {
+    const el = document.querySelector('.mobile-bottom-nav');
+    if (!el) return;
+    if (window.visualViewport) {
+      const vv = window.visualViewport;
+      const offsetFromBottom = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      el.style.bottom = offsetFromBottom + 'px';
+    } else {
+      el.style.bottom = '0px';
+    }
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', pinBottomNavToViewport);
+    window.visualViewport.addEventListener('scroll', pinBottomNavToViewport);
+  }
+  window.addEventListener('load', pinBottomNavToViewport);
+  window.addEventListener('orientationchange', () => setTimeout(pinBottomNavToViewport, 300));
+  document.addEventListener('DOMContentLoaded', pinBottomNavToViewport);
+
   function toggleMobileNav() {
     const drawer  = document.getElementById('mobile-nav-drawer');
     const burger  = document.getElementById('hamburger');
