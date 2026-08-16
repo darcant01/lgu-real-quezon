@@ -3633,27 +3633,28 @@
       alert('Push notifications aren\'t supported on this browser. Try Chrome, Edge, or Firefox.');
       return;
     }
-    // Already enabled — clicking again offers to turn it off
-    if (Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1') {
+    const reg = await navigator.serviceWorker.ready;
+    const existingSub = await reg.pushManager.getSubscription();
+
+    // Only offer to turn OFF if there's a real, active push subscription —
+    // not just a locally-saved flag (which could be stale from an earlier
+    // attempt that silently failed to actually save).
+    if (Notification.permission === 'granted' && existingSub && localStorage.getItem('lgu_alerts_enabled') === '1') {
       if (confirm('Turn off emergency alert notifications on this device?')) {
         try {
-          const reg = await navigator.serviceWorker.ready;
-          const sub = await reg.pushManager.getSubscription();
-          if (sub) {
-            await _sb.from('lgu_push_subscriptions').delete().eq('endpoint', sub.endpoint);
-            await sub.unsubscribe();
-          }
+          await _sb.from('lgu_push_subscriptions').delete().eq('endpoint', existingSub.endpoint);
+          await existingSub.unsubscribe();
         } catch {}
         localStorage.removeItem('lgu_alerts_enabled');
         _updateAlertBtnUI();
       }
       return;
     }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') { _updateAlertBtnUI(); return; }
     try {
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
+      let sub = existingSub;
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
@@ -3661,12 +3662,18 @@
         });
       }
       const raw = sub.toJSON();
-      await _sb.from('lgu_push_subscriptions').upsert(
+      const { error: saveError } = await _sb.from('lgu_push_subscriptions').upsert(
         { endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth },
         { onConflict: 'endpoint' }
       );
+      if (saveError) {
+        console.error('[push subscribe] save failed:', saveError);
+        alert('Notifications were allowed, but saving your subscription failed:\n' + saveError.message + '\n\n(This usually means the database table isn\'t set up yet — contact the site admin.)');
+        return; // don't mark as enabled if it wasn't actually saved
+      }
       localStorage.setItem('lgu_alerts_enabled', '1');
       _updateAlertBtnUI();
+      alert('✅ Emergency alerts enabled on this device.');
     } catch (err) {
       console.error('[push subscribe]', err);
       alert('Could not enable alerts — please try again.');
