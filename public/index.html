@@ -3599,7 +3599,8 @@
   // held server-side in api/send-alert-push.js, must stay secret).
   const VAPID_PUBLIC_KEY = 'BPMQAN03k2rfU7FY_JUH0Hz7GHJrpJnTFOCBR2EicrqqISeJe0ZtjePAspaVS274DF6nWD-9xSeSYouEax58GwY';
 
-  const _alertAudio = new Audio('/alert-sound.wav');
+  const _alertAudio = new Audio('/alert-sound.mp3');
+  _alertAudio.preload = 'none'; // don't download the ~1min alert sound until it's actually needed
   function playAlertSound() {
     try { _alertAudio.currentTime = 0; _alertAudio.play().catch(() => {}); } catch {}
   }
