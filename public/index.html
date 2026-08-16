@@ -3662,9 +3662,16 @@
         });
       }
       const raw = sub.toJSON();
-      const { error: saveError } = await _sb.from('lgu_push_subscriptions').upsert(
-        { endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth },
-        { onConflict: 'endpoint' }
+      // Delete-then-insert instead of upsert: an upsert's "on conflict, update"
+      // path requires the database to SELECT the existing row to resolve the
+      // conflict — but this table deliberately has no public SELECT policy
+      // (so anonymous visitors can't read the list of subscribers), which
+      // makes true upsert-by-conflict impossible under that RLS setup.
+      // Delete-then-insert achieves the same "replace if present" result
+      // using only the INSERT/DELETE policies that already exist.
+      await _sb.from('lgu_push_subscriptions').delete().eq('endpoint', raw.endpoint);
+      const { error: saveError } = await _sb.from('lgu_push_subscriptions').insert(
+        { endpoint: raw.endpoint, p256dh: raw.keys.p256dh, auth: raw.keys.auth }
       );
       if (saveError) {
         console.error('[push subscribe] save failed:', saveError);
