@@ -4261,7 +4261,7 @@ function updateAlertPreview() {
 // source), just a basic guard against random/accidental calls to the
 // endpoint; the endpoint itself only ever sends the alert text, no
 // sensitive data.
-const PUSH_TRIGGER_SECRET = 'CHANGE_ME_TO_MATCH_VERCEL_ENV_VAR';
+const PUSH_TRIGGER_SECRET = 'b1b91904c54dee90a402c3d4bfb30208d057e73392782e78';
 
 async function saveAlert() {
   const prevFingerprint = (alertData.active ? (alertData.title||'') + '|' + (alertData.body||'') : '');
