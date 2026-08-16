@@ -30,7 +30,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://llybnlehnagtaghtaouj.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Non-blocking font load: the browser fetches this in the background
+     (media="print" makes it non-render-blocking) and swaps it to "all"
+     once loaded, instead of pausing the whole page render to fetch it
+     first. display=swap in the URL already prevents invisible text in
+     the meantime — this just stops it from delaying first paint too. -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"></noscript>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root {
@@ -1495,14 +1502,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LGU Real">
-
-<!-- Supabase — live database connection for LGU Real -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
-  const SUPABASE_URL  = 'https://llybnlehnagtaghtaouj.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxseWJubGVobmFndGFnaHRhb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzU4NzYsImV4cCI6MjEwMjExMTg3Nn0.6rRYJdxcmEbEsv_4Ki317_8MybMs6EqlGaRZapa_418';
-  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-</script>
 <body>
 
 <nav>
@@ -2150,6 +2149,18 @@
     <span><a href="#">Privacy Policy</a> &nbsp;·&nbsp; <a href="#">Accessibility</a> &nbsp;·&nbsp; <a href="#">Site Map</a></span>
   </div>
 </footer>
+
+<!-- Supabase SDK loaded here (end of body) instead of <head> — it's a
+     ~35KB third-party script, and loading it before <body> blocked the
+     browser from painting ANY visible content (nav, hero, everything)
+     until it finished downloading. All visible HTML is now already
+     parsed and rendered by the time this loads. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL  = 'https://llybnlehnagtaghtaouj.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxseWJubGVobmFndGFnaHRhb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MzU4NzYsImV4cCI6MjEwMjExMTg3Nn0.6rRYJdxcmEbEsv_4Ki317_8MybMs6EqlGaRZapa_418';
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+</script>
 
 <script>
   // ── 3D INTERACTIVE EFFECTS ────────────────────────
