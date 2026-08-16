@@ -527,14 +527,23 @@
 
   /* ── BOTTOM MOBILE NAV BAR ── */
   .mobile-bottom-nav {
+    /* Disabled on mobile: this bar had a persistent, unresolved bug where
+       it rendered stuck near the top of the screen (overlapping the
+       header) instead of pinned to the bottom, on real devices — not
+       reproducible via DOM/CSS inspection, and survived multiple fix
+       attempts (GPU compositing layer, direct visualViewport-based JS
+       positioning). Rather than ship a broken/confusing nav element,
+       it's fully disabled here. Full navigation remains available via
+       the hamburger menu drawer, which does not have this issue.
+       If revisiting this: display is forced off further down via the
+       lack of any `display: block` override in the mobile media
+       queries — the base `display: none` below is what actually keeps
+       it hidden on all screen sizes now. */
     display: none;
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-    background: magenta; /* TEMP DIAGNOSTIC MARKER — remove after confirming */
+    background: var(--forest-d);
     border-top: 1px solid rgba(255,255,255,0.1);
     padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: transform;
   }
   .mobile-bottom-nav ul {
     list-style: none; display: flex; justify-content: space-around; align-items: center;
@@ -617,10 +626,11 @@
     .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
     .about-badge { right: 0; bottom: -10px; }
     .section-title { font-size: clamp(1.5rem, 4vw, 2.4rem); }
-    /* Bottom nav */
-    .mobile-bottom-nav { display: block; }
-    body { padding-bottom: 60px; }
-    footer { padding-bottom: max(60px, calc(60px + env(safe-area-inset-bottom))); }
+    /* Bottom nav — intentionally disabled on mobile (see .mobile-bottom-nav
+       base rule below for why). Full navigation is still available via
+       the hamburger menu / slide-out drawer. */
+    body { padding-bottom: 0; }
+    footer { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
   }
 
   @media (max-width: 600px) {
@@ -629,7 +639,6 @@
     .nav-seal { width: 36px; height: 36px; font-size: 16px; }
     .nav-title strong { font-size: 0.85rem; }
     .mobile-nav-drawer { top: 60px; }
-    .mobile-bottom-nav { display: block; }
 
     /* Hero */
     .hero { padding: 80px 5% 80px; min-height: 85vh; }
@@ -2280,31 +2289,6 @@
   });
 
   // ── MOBILE NAV ────────────────────────────────────
-  // Directly pin the bottom nav to the real visible screen using
-  // visualViewport, instead of relying on CSS position:fixed;bottom:0 —
-  // Chrome mobile's collapsible address bar can cause fixed-bottom
-  // elements to mis-anchor (observed: the bar rendering stuck near the
-  // top instead of the true bottom). This bypasses that entirely by
-  // computing the real pixel offset directly.
-  function pinBottomNavToViewport() {
-    const el = document.querySelector('.mobile-bottom-nav');
-    if (!el) return;
-    if (window.visualViewport) {
-      const vv = window.visualViewport;
-      const offsetFromBottom = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
-      el.style.bottom = offsetFromBottom + 'px';
-    } else {
-      el.style.bottom = '0px';
-    }
-  }
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', pinBottomNavToViewport);
-    window.visualViewport.addEventListener('scroll', pinBottomNavToViewport);
-  }
-  window.addEventListener('load', pinBottomNavToViewport);
-  window.addEventListener('orientationchange', () => setTimeout(pinBottomNavToViewport, 300));
-  document.addEventListener('DOMContentLoaded', pinBottomNavToViewport);
-
   function toggleMobileNav() {
     const drawer  = document.getElementById('mobile-nav-drawer');
     const burger  = document.getElementById('hamburger');
