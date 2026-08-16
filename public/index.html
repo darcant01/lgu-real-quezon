@@ -529,15 +529,9 @@
   .mobile-bottom-nav {
     display: none;
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-    background: var(--forest-d);
+    background: magenta; /* TEMP DIAGNOSTIC MARKER — remove after confirming */
     border-top: 1px solid rgba(255,255,255,0.1);
     padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-    /* Force its own GPU compositing layer. Chrome mobile has a known quirk
-       where a position:fixed element can mis-anchor (glued near the top of
-       the scrolling box instead of the true screen bottom) when an ancestor
-       like html/body has overflow-x:hidden set — which this site needs for
-       unrelated horizontal-overflow fixes. Promoting this element to its
-       own layer reliably avoids that misplacement. */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: transform;
