@@ -1755,7 +1755,7 @@
 <div class="alert-banner" id="alert-banner">
   <span class="alert-icon">🚨</span>
   <div class="alert-text"><strong id="alert-title"></strong> <span id="alert-body"></span></div>
-  <button class="alert-dismiss" onclick="document.getElementById('alert-banner').classList.remove('active')">Dismiss ✕</button>
+  <button class="alert-dismiss" onclick="dismissAlertBanner()">Dismiss ✕</button>
 </div>
 
 <section class="hero">
@@ -3204,6 +3204,7 @@
     const banner = document.getElementById('alert-banner');
     if (!alert || !alert.active) {
       banner.classList.remove('active');
+      stopAlertSound(); // in case the admin deactivates it while it's playing
       return;
     }
     document.getElementById('alert-title').textContent = alert.title || '';
@@ -3657,6 +3658,13 @@
   _alertAudio.preload = 'none'; // don't download the ~1min alert sound until it's actually needed
   function playAlertSound() {
     try { _alertAudio.currentTime = 0; _alertAudio.play().catch(() => {}); } catch {}
+  }
+  function stopAlertSound() {
+    try { _alertAudio.pause(); _alertAudio.currentTime = 0; } catch {}
+  }
+  function dismissAlertBanner() {
+    document.getElementById('alert-banner').classList.remove('active');
+    stopAlertSound();
   }
   // A push arrived while a tab was open — the service worker already
   // showed the system notification; also play our custom sound here,
