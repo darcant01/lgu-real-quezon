@@ -3182,7 +3182,9 @@
   function applyAlertData(alert) {
     if (!alert || !alert.active) {
       hideAlertModal();
+      hideFloatingAlertIcon();
       stopAlertSound();
+      window._currentAlert = null;
       return;
     }
     // Include publishedAt so re-publishing the SAME text still counts as
@@ -3190,11 +3192,23 @@
     // 'notify everyone now' action, so it should reach devices that
     // already dismissed an earlier instance of this alert too.
     const fingerprint = (alert.title || '') + '|' + (alert.body || '') + '|' + (alert.publishedAt || '');
-    if ((alert.title||'').trim() === '' && (alert.body||'').trim() === '') { hideAlertModal(); return; } // nothing to show
+    if ((alert.title||'').trim() === '' && (alert.body||'').trim() === '') {
+      hideAlertModal(); hideFloatingAlertIcon(); return; // nothing to show
+    }
+
+    window._currentAlert = alert;
+    window._currentAlertFingerprint = fingerprint;
 
     const dismissed = localStorage.getItem('lgu_dismissed_alert');
-    if (fingerprint === dismissed) return;
+    if (fingerprint === dismissed) {
+      // Already seen this exact publish — stay minimized as the floating
+      // badge instead of popping the full alert up again unprompted.
+      hideAlertModal();
+      showFloatingAlertIcon();
+      return;
+    }
 
+    hideFloatingAlertIcon();
     showAlertModal(alert, fingerprint);
     playAlertSound();
   }
@@ -3220,7 +3234,7 @@
         </div>
         <div style="padding:24px;">
           <p id="alert-modal-body" style="color:#4A5568;font-size:0.95rem;line-height:1.7;margin:0 0 22px;">${esc(alert.body||'')}</p>
-          <button onclick="dismissAlertBanner()" style="width:100%;background:#1A3C2E;color:white;padding:12px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">Dismiss ✕</button>
+          <button onclick="dismissAlertBanner()" style="width:100%;background:#1A3C2E;color:white;padding:12px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">➖ Minimize (read later)</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -3228,6 +3242,34 @@
   function hideAlertModal() {
     const overlay = document.getElementById('alert-modal-overlay');
     if (overlay) overlay.remove();
+  }
+  // Floating badge shown after an alert is minimized — stays on screen
+  // (any page/scroll position) for as long as the alert remains active,
+  // so it's never fully lost, just tucked out of the way until wanted.
+  function showFloatingAlertIcon() {
+    let btn = document.getElementById('alert-float-btn');
+    if (btn) { btn.style.display = 'flex'; return; }
+    btn = document.createElement('button');
+    btn.id = 'alert-float-btn';
+    btn.type = 'button';
+    btn.title = 'Emergency Alert — tap to view';
+    btn.setAttribute('aria-label', 'View emergency alert');
+    btn.onclick = reopenAlertModal;
+    btn.style.cssText = 'position:fixed;bottom:22px;right:22px;width:58px;height:58px;border-radius:50%;background:#C0392B;border:3px solid white;box-shadow:0 10px 28px rgba(192,57,43,0.55);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;z-index:590;animation:blink-emergency 1.6s steps(1,end) infinite;padding:0;';
+    btn.textContent = '🚨';
+    document.body.appendChild(btn);
+  }
+  function hideFloatingAlertIcon() {
+    const btn = document.getElementById('alert-float-btn');
+    if (btn) btn.remove();
+  }
+  // Tapping the floating badge re-opens the full alert to read again —
+  // does NOT replay the sound, since the visitor already heard/saw it
+  // and is just choosing to revisit the details.
+  function reopenAlertModal() {
+    if (!window._currentAlert) return;
+    hideFloatingAlertIcon();
+    showAlertModal(window._currentAlert, window._currentAlertFingerprint);
   }
   // Live updates: as soon as an admin activates/changes/deactivates the
   // Emergency Alert, every visitor currently on the site sees it (and
@@ -3695,10 +3737,11 @@
   document.addEventListener('touchstart', _unlockAlertAudio, { once: true });
   function dismissAlertBanner() {
     const overlay = document.getElementById('alert-modal-overlay');
-    const fingerprint = overlay ? overlay.dataset.fingerprint : '';
+    const fingerprint = overlay ? overlay.dataset.fingerprint : (window._currentAlertFingerprint || '');
     if (fingerprint) localStorage.setItem('lgu_dismissed_alert', fingerprint);
     hideAlertModal();
     stopAlertSound();
+    if (window._currentAlert) showFloatingAlertIcon(); // minimize, don't fully lose it
   }
   // A push arrived while a tab was open — the service worker already
   // showed the system notification; also play our custom sound here,
