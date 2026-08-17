@@ -805,13 +805,25 @@
     background: var(--cream); border-radius: 12px; padding: 32px 30px;
     border: 1px solid rgba(0,0,0,0.06);
     text-align: center;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer; width: 100%;
+    appearance: none; -webkit-appearance: none;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .tourism-info-card:hover, .tourism-info-card:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(0,0,0,0.1);
+    border-color: rgba(201,162,39,0.4);
+    outline: none;
   }
   .tourism-info-header { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
   .tourism-info-icon {
     width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
     background: linear-gradient(145deg, var(--forest), var(--forest-l));
     display: flex; align-items: center; justify-content: center; font-size: 20px;
+    transition: transform 0.2s;
   }
+  .tourism-info-card:hover .tourism-info-icon { transform: scale(1.08); }
   .tourism-info-header h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--forest-d); }
   .tourism-info-body { font-size: 0.88rem; line-height: 1.8; color: var(--slate); text-align: center; }
   .tourism-info-body p { margin-bottom: 12px; }
@@ -1963,18 +1975,18 @@
   </div>
 
   <div class="tourism-info-grid">
-    <div class="tourism-info-card">
+    <button type="button" class="tourism-info-card" onclick="openTourismInfoModal('itinerary')">
       <div class="tourism-info-header"><span class="tourism-info-icon">🗓️</span><h3>Suggested Itinerary</h3></div>
-      <div class="tourism-info-body" id="tourism-itinerary-body">
-        <p style="color:var(--slate-l);">Itinerary suggestions coming soon.</p>
+      <div class="tourism-info-body" id="tourism-itinerary-teaser">
+        <p style="color:var(--slate-l);">Tap to view →</p>
       </div>
-    </div>
-    <div class="tourism-info-card">
+    </button>
+    <button type="button" class="tourism-info-card" onclick="openTourismInfoModal('tips')">
       <div class="tourism-info-header"><span class="tourism-info-icon">💡</span><h3>Travel Tips</h3></div>
-      <div class="tourism-info-body" id="tourism-tips-body">
-        <p style="color:var(--slate-l);">Travel tips coming soon.</p>
+      <div class="tourism-info-body" id="tourism-tips-teaser">
+        <p style="color:var(--slate-l);">Tap to view →</p>
       </div>
-    </div>
+    </button>
   </div>
 
   <div style="text-align:center;margin-top:36px;">
@@ -3142,11 +3154,35 @@
       }
     }
     if (itinerary && itinerary.body) {
-      document.getElementById('tourism-itinerary-body').innerHTML = itinerary.body;
+      window._tourismItinerary = itinerary.body;
     }
     if (tips && tips.body) {
-      document.getElementById('tourism-tips-body').innerHTML = tips.body;
+      window._tourismTips = tips.body;
     }
+  }
+  const TOURISM_INFO = {
+    itinerary: { icon: '🗓️', title: 'Suggested Itinerary', empty: 'Itinerary suggestions coming soon.' },
+    tips:      { icon: '💡', title: 'Travel Tips',          empty: 'Travel tips coming soon.' },
+  };
+  function openTourismInfoModal(type) {
+    const info = TOURISM_INFO[type];
+    if (!info) return;
+    const body = type === 'itinerary' ? window._tourismItinerary : window._tourismTips;
+    const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:640px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:36px 40px;';
+    modal.innerHTML = `
+      <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(145deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:18px;">${info.icon}</div>
+      <h1 style="font-family:'Playfair Display',serif;font-size:clamp(1.4rem,3vw,1.9rem);font-weight:900;color:#0F2419;line-height:1.2;margin-bottom:18px;">${esc(info.title)}</h1>
+      ${body
+        ? `<div class="pub-article-body">${body}</div>`
+        : `<div style="background:#F5F0E8;border-radius:8px;padding:20px;font-size:0.9rem;color:#718096;line-height:1.6;">${esc(info.empty)}</div>`}
+      <button onclick="this.closest('.lgu-modal-overlay').remove()" style="margin-top:28px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>`;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
   // Updates the nav Tourism dropdown's live image preview pane. Called with
   // no argument (or an out-of-range index) to reset to the default state.
