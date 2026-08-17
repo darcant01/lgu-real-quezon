@@ -1767,10 +1767,10 @@
     </div>
   </div>
   <div class="hero-stats" style="position:absolute;bottom:60px;right:8%;z-index:5;display:flex;gap:40px;">
-    <div class="stat"><span class="stat-num">14</span><span class="stat-label">Barangays</span></div>
-    <div class="stat"><span class="stat-num">~35K</span><span class="stat-label">Population</span></div>
-    <div class="stat"><span class="stat-num">1901</span><span class="stat-label">Founded</span></div>
-    <div class="stat"><span class="stat-num">1st</span><span class="stat-label">Income Class</span></div>
+    <div class="stat"><span class="stat-num" id="hero-stat-barangays">17</span><span class="stat-label">Barangays</span></div>
+    <div class="stat"><span class="stat-num" id="hero-stat-population">~35K</span><span class="stat-label">Population</span></div>
+    <div class="stat"><span class="stat-num" id="hero-stat-founded">1901</span><span class="stat-label">Founded</span></div>
+    <div class="stat"><span class="stat-num" id="hero-stat-income">1st</span><span class="stat-label">Income Class</span></div>
   </div>
 </section>
 
@@ -2965,6 +2965,12 @@
     // Page title
     if (s.name) document.title = s.name + (s.province ? ' — ' + s.province : '');
 
+    // Hero stats — Population / Founded / Income Class (Barangays count
+    // is auto-computed from the real barangay list in loadBarangays())
+    if (s.heroPopulation) document.getElementById('hero-stat-population').textContent = s.heroPopulation;
+    if (s.heroFounded)    document.getElementById('hero-stat-founded').textContent    = s.heroFounded;
+    if (s.heroIncomeClass)document.getElementById('hero-stat-income').textContent     = s.heroIncomeClass;
+
     // Logo image — now a public Storage URL stored directly in settings
     if (s.logo) {
       ['site-logo-nav', 'site-logo-footer'].forEach(id => {
@@ -3630,6 +3636,10 @@
           </div>` : ''}
         </div>
       </div>`).join('');
+
+    // Keep the "Barangays" hero stat in sync with the real count automatically
+    const heroStat = document.getElementById('hero-stat-barangays');
+    if (heroStat) heroStat.textContent = list.length;
   }
 
   // ── DEPARTMENT DIRECTORY ──────────────────────────

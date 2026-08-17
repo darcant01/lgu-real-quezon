@@ -1841,6 +1841,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
       </div>
 
+      <!-- HOMEPAGE HERO STATS -->
+      <div class="card" style="margin-top:0">
+        <div class="card-header"><div><h3>📊 Homepage Hero Stats</h3><p>The 4 stat numbers shown on the hero banner. "Barangays" updates itself automatically from your Barangay Profiles list — the other 3 are edited here.</p></div></div>
+        <div class="card-body">
+          <div class="form-group"><label>Population</label><input type="text" id="set-hero-population" placeholder="e.g. ~35K"></div>
+          <div class="form-group"><label>Founded (Year)</label><input type="text" id="set-hero-founded" placeholder="e.g. 1901"></div>
+          <div class="form-group"><label>Income Class</label><input type="text" id="set-hero-income" placeholder="e.g. 1st"></div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Hero Stats</button>
+        </div>
+      </div>
+
       <!-- SOCIAL MEDIA -->
       <div class="card" style="margin-top:0">
         <div class="card-header"><div><h3>📣 Social Media Accounts</h3><p>Shown as icons in the site footer. Leave any field blank to hide that icon.</p></div></div>
@@ -5355,6 +5366,9 @@ function applySettings() {
   if (settings.mayor)    document.getElementById('set-mayor').value    = settings.mayor;
   if (settings.phone)    document.getElementById('set-phone').value    = settings.phone;
   if (settings.email)    document.getElementById('set-email').value    = settings.email;
+  if (settings.heroPopulation)  document.getElementById('set-hero-population').value = settings.heroPopulation;
+  if (settings.heroFounded)     document.getElementById('set-hero-founded').value    = settings.heroFounded;
+  if (settings.heroIncomeClass) document.getElementById('set-hero-income').value     = settings.heroIncomeClass;
   if (settings.facebook) document.getElementById('set-fb').value       = settings.facebook;
   if (settings.twitter)  document.getElementById('set-x').value        = settings.twitter;
   if (settings.instagram)document.getElementById('set-ig').value       = settings.instagram;
@@ -5389,6 +5403,9 @@ async function saveSettings() {
     mayor:     document.getElementById('set-mayor').value.trim(),
     phone:     document.getElementById('set-phone').value.trim(),
     email:     document.getElementById('set-email').value.trim(),
+    heroPopulation:  document.getElementById('set-hero-population').value.trim(),
+    heroFounded:     document.getElementById('set-hero-founded').value.trim(),
+    heroIncomeClass: document.getElementById('set-hero-income').value.trim(),
     facebook:  document.getElementById('set-fb').value.trim(),
     twitter:   document.getElementById('set-x').value.trim(),
     instagram: document.getElementById('set-ig').value.trim(),
