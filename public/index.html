@@ -706,29 +706,13 @@
     .alert-icon { animation: none; }
   }
 
-  /* ── EMERGENCY ALERT BANNER ── */
-  .alert-banner {
-    display: none;
-    background: #C0392B; color: white;
-    padding: 12px 5%;
-    font-size: 0.85rem; font-weight: 500;
-    position: relative; z-index: 99;
-    border-bottom: 2px solid #922B21;
-  }
-  .alert-banner.active { display: flex; align-items: center; gap: 14px; }
-  .alert-icon { font-size: 20px; flex-shrink: 0; display: inline-block; animation: blink-emergency 1s steps(1, end) infinite; }
+  /* ── EMERGENCY ALERT — now a JS-generated popup modal instead of an
+     in-flow banner, so it stays visible regardless of scroll position.
+     See applyAlertData()/showAlertModal() further down. Keeping these
+     two keyframes since they're reused by the modal and by the Events
+     'LIVE NOW' badge. */
   @keyframes blink-emergency { 0%, 49% { opacity: 1; transform: scale(1); } 50%, 100% { opacity: 0.2; transform: scale(0.85); } }
   @keyframes pulse-alert { 0%,100%{opacity:1} 50%{opacity:0.5} }
-  .alert-text { flex: 1; line-height: 1.4; }
-  .alert-text strong { font-size: 0.88rem; }
-  .alert-dismiss {
-    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35);
-    color: white; border-radius: 4px; padding: 4px 12px;
-    cursor: pointer; font-size: 0.75rem; font-weight: 600;
-    font-family: 'Inter', sans-serif; flex-shrink: 0;
-    transition: background 0.15s;
-  }
-  .alert-dismiss:hover { background: rgba(255,255,255,0.3); }
 
   /* ── EVENTS SECTION ── */
   .events { padding: 90px 8%; background: var(--forest); color: white; }
@@ -1749,13 +1733,6 @@
     <span class="ticker-item">DSWD Ayuda Distribution — Check your barangay schedule</span>
     <span class="ticker-item">Infrastructure Project: Real–Infanta Bypass Road ongoing</span>
   </div>
-</div>
-
-<!-- EMERGENCY ALERT BANNER — shown when active in admin -->
-<div class="alert-banner" id="alert-banner">
-  <span class="alert-icon">🚨</span>
-  <div class="alert-text"><strong id="alert-title"></strong> <span id="alert-body"></span></div>
-  <button class="alert-dismiss" onclick="dismissAlertBanner()">Dismiss ✕</button>
 </div>
 
 <section class="hero">
@@ -3199,26 +3176,57 @@
     applyAlertData(alert);
   }
   // Shared by the initial page load AND the realtime subscription below —
-  // shows/hides the banner and plays the sound for a newly-activated alert.
+  // shows/hides the alert popup and plays the sound for a newly-activated
+  // alert. Popup (not an in-flow banner) so it's visible no matter where
+  // the visitor has scrolled to on the page.
   function applyAlertData(alert) {
-    const banner = document.getElementById('alert-banner');
     if (!alert || !alert.active) {
-      banner.classList.remove('active');
-      stopAlertSound(); // in case the admin deactivates it while it's playing
+      hideAlertModal();
+      stopAlertSound();
       return;
     }
-    document.getElementById('alert-title').textContent = alert.title || '';
-    document.getElementById('alert-body').textContent  = alert.body  || '';
-    banner.classList.add('active');
-
-    // Play the alert sound once per distinct active alert — not on every
-    // page load/reload, only the first time this specific alert is seen.
     const fingerprint = (alert.title || '') + '|' + (alert.body || '');
-    const lastSeen = localStorage.getItem('lgu_last_alert_seen');
-    if (fingerprint.trim() !== '|' && fingerprint !== lastSeen) {
-      localStorage.setItem('lgu_last_alert_seen', fingerprint);
-      playAlertSound();
+    if (fingerprint.trim() === '|') { hideAlertModal(); return; } // nothing to show
+
+    // Once a visitor dismisses a specific alert, don't nag them with the
+    // same one again on this device — but a NEW/changed alert (different
+    // fingerprint) always shows, even if a previous one was dismissed.
+    const dismissed = localStorage.getItem('lgu_dismissed_alert');
+    if (fingerprint === dismissed) return;
+
+    showAlertModal(alert, fingerprint);
+    playAlertSound();
+  }
+  function showAlertModal(alert, fingerprint) {
+    let overlay = document.getElementById('alert-modal-overlay');
+    if (overlay) {
+      // Already showing — just refresh its content/fingerprint in place
+      document.getElementById('alert-modal-title').textContent = alert.title || '';
+      document.getElementById('alert-modal-body').textContent  = alert.body  || '';
+      overlay.dataset.fingerprint = fingerprint;
+      return;
     }
+    overlay = document.createElement('div');
+    overlay.id = 'alert-modal-overlay';
+    overlay.className = 'lgu-modal-overlay';
+    overlay.dataset.fingerprint = fingerprint;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:14px;max-width:460px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.45);overflow:hidden;">
+        <div style="background:#C0392B;padding:20px 24px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:26px;display:inline-block;animation:blink-emergency 1s steps(1,end) infinite;">🚨</span>
+          <h2 id="alert-modal-title" style="color:white;font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:800;margin:0;line-height:1.3;">${esc(alert.title||'')}</h2>
+        </div>
+        <div style="padding:24px;">
+          <p id="alert-modal-body" style="color:#4A5568;font-size:0.95rem;line-height:1.7;margin:0 0 22px;">${esc(alert.body||'')}</p>
+          <button onclick="dismissAlertBanner()" style="width:100%;background:#1A3C2E;color:white;padding:12px;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">Dismiss ✕</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  function hideAlertModal() {
+    const overlay = document.getElementById('alert-modal-overlay');
+    if (overlay) overlay.remove();
   }
   // Live updates: as soon as an admin activates/changes/deactivates the
   // Emergency Alert, every visitor currently on the site sees it (and
@@ -3663,7 +3671,10 @@
     try { _alertAudio.pause(); _alertAudio.currentTime = 0; } catch {}
   }
   function dismissAlertBanner() {
-    document.getElementById('alert-banner').classList.remove('active');
+    const overlay = document.getElementById('alert-modal-overlay');
+    const fingerprint = overlay ? overlay.dataset.fingerprint : '';
+    if (fingerprint) localStorage.setItem('lgu_dismissed_alert', fingerprint);
+    hideAlertModal();
     stopAlertSound();
   }
   // A push arrived while a tab was open — the service worker already
