@@ -1563,12 +1563,7 @@
     </li>
     <li><a href="#news">News</a></li>
     <li><a href="#officials">Officials</a></li>
-    <li class="nav-dropdown">
-      <a href="#programs">Programs ▾</a>
-      <div class="nav-dropdown-menu" id="nav-programs-menu">
-        <a href="javascript:void(0)" onclick="goToProgramCategory('all')">📈 All Programs</a>
-      </div>
-    </li>
+    <li><a href="#programs">Programs</a></li>
     <li class="nav-dropdown">
       <a href="#tourism">Tourism ▾</a>
       <div class="nav-dropdown-menu nav-tourism-menu" id="nav-tourism-menu">
@@ -1639,11 +1634,7 @@
 
   <a href="#news"          onclick="closeMobileNav()">📰 News & Updates</a>
   <a href="#officials"     onclick="closeMobileNav()">🏛️ Elected Officials</a>
-  <div class="drawer-item-row">
-    <a href="#programs" onclick="closeMobileNav()">📋 Programs</a>
-    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand Programs submenu">▾</button>
-  </div>
-  <div class="drawer-submenu" id="mobile-programs-submenu"></div>
+  <a href="#programs"      onclick="closeMobileNav()">📋 Programs</a>
   <div class="drawer-section">Community</div>
   <a href="#events"        onclick="closeMobileNav()">📅 Events Calendar</a>
   <div class="drawer-item-row">
@@ -3069,20 +3060,6 @@
       `<button class="program-cat-btn${i===0?' active':''}" onclick="filterPrograms('${esc(i===0?'all':c)}',this)">${esc(c)}</button>`
     ).join('');
     filterPrograms('all', catEl.firstElementChild);
-
-    // Keep the nav dropdown and mobile drawer in sync with the same statuses
-    const navMenu = document.getElementById('nav-programs-menu');
-    if (navMenu) {
-      navMenu.innerHTML = cats.map((c,i) =>
-        `<a href="javascript:void(0)" onclick="goToProgramCategory('${esc(i===0?'all':c)}')">${i===0?'📈':'📌'} ${esc(c)}</a>`
-      ).join('');
-    }
-    const mobileMenu = document.getElementById('mobile-programs-submenu');
-    if (mobileMenu) {
-      mobileMenu.innerHTML = cats.map((c,i) =>
-        `<a href="javascript:void(0)" onclick="closeMobileNav();goToProgramCategory('${esc(i===0?'all':c)}')">${i===0?'📈':'📌'} ${esc(c)}</a>`
-      ).join('');
-    }
   }
   const PROGRAM_STATUS_CLASS = { 'Ongoing':'status-ongoing', 'New 2026':'status-new', 'Completed':'status-completed', 'Planned':'status-planned' };
   function filterPrograms(status, btn) {
@@ -3101,16 +3078,6 @@
         <p>${esc(p.desc||'')}</p>
         <span class="program-status ${PROGRAM_STATUS_CLASS[p.status]||'status-ongoing'}">${esc(p.status||'Ongoing')}</span>
       </div>`).join('');
-  }
-  // Scroll to the Programs section and pre-filter it by status
-  function goToProgramCategory(status) {
-    const section = document.getElementById('programs');
-    if (section) section.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(() => {
-      const btns = document.querySelectorAll('#program-categories .program-cat-btn');
-      const target = status === 'all' ? btns[0] : Array.from(btns).find(b => b.textContent === status);
-      if (target) target.click();
-    }, 350);
   }
 
   // ── TOURISM & ATTRACTIONS ──────────────────────────
