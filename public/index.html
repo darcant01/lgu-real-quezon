@@ -3196,10 +3196,19 @@
   // ── EMERGENCY ALERT ───────────────────────────────
   async function loadAlert() {
     const alert = await safeGet('lgu_alert');
-    if (!alert || !alert.active) return;
+    applyAlertData(alert);
+  }
+  // Shared by the initial page load AND the realtime subscription below —
+  // shows/hides the banner and plays the sound for a newly-activated alert.
+  function applyAlertData(alert) {
+    const banner = document.getElementById('alert-banner');
+    if (!alert || !alert.active) {
+      banner.classList.remove('active');
+      return;
+    }
     document.getElementById('alert-title').textContent = alert.title || '';
     document.getElementById('alert-body').textContent  = alert.body  || '';
-    document.getElementById('alert-banner').classList.add('active');
+    banner.classList.add('active');
 
     // Play the alert sound once per distinct active alert — not on every
     // page load/reload, only the first time this specific alert is seen.
@@ -3208,6 +3217,23 @@
     if (fingerprint.trim() !== '|' && fingerprint !== lastSeen) {
       localStorage.setItem('lgu_last_alert_seen', fingerprint);
       playAlertSound();
+    }
+  }
+  // Live updates: as soon as an admin activates/changes/deactivates the
+  // Emergency Alert, every visitor currently on the site sees it (and
+  // hears the sound) instantly — no page refresh needed. Uses Supabase
+  // Realtime (Postgres change events over a WebSocket), not polling.
+  function subscribeToAlertRealtime() {
+    try {
+      _sb.channel('lgu-alert-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lgu_kv', filter: 'key=eq.lgu_alert' }, (payload) => {
+          const newValue = payload.new && payload.new.value;
+          if (_kvCache) _kvCache['lgu_alert'] = newValue || null;
+          applyAlertData(newValue);
+        })
+        .subscribe();
+    } catch (err) {
+      console.warn('[alert realtime] subscription failed, falling back to load-time check only', err);
     }
   }
 
@@ -3725,6 +3751,7 @@
       loadAlert(), loadEvents(), loadGallery(), loadServices(), loadPrograms(), loadTourism(),
       loadBranding(), loadDocuments(), loadCharter(), loadBarangays(), loadDirectory(), loadFAQ()
     ]);
+    subscribeToAlertRealtime();
   })();
 </script>
 </body>
