@@ -3185,12 +3185,13 @@
       stopAlertSound();
       return;
     }
-    const fingerprint = (alert.title || '') + '|' + (alert.body || '');
-    if (fingerprint.trim() === '|') { hideAlertModal(); return; } // nothing to show
+    // Include publishedAt so re-publishing the SAME text still counts as
+    // a new occurrence — an admin clicking Save again is a deliberate
+    // 'notify everyone now' action, so it should reach devices that
+    // already dismissed an earlier instance of this alert too.
+    const fingerprint = (alert.title || '') + '|' + (alert.body || '') + '|' + (alert.publishedAt || '');
+    if ((alert.title||'').trim() === '' && (alert.body||'').trim() === '') { hideAlertModal(); return; } // nothing to show
 
-    // Once a visitor dismisses a specific alert, don't nag them with the
-    // same one again on this device — but a NEW/changed alert (different
-    // fingerprint) always shows, even if a previous one was dismissed.
     const dismissed = localStorage.getItem('lgu_dismissed_alert');
     if (fingerprint === dismissed) return;
 

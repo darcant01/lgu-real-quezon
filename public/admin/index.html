@@ -4264,22 +4264,24 @@ function updateAlertPreview() {
 const PUSH_TRIGGER_SECRET = 'b1b91904c54dee90a402c3d4bfb30208d057e73392782e78';
 
 async function saveAlert() {
-  const prevFingerprint = (alertData.active ? (alertData.title||'') + '|' + (alertData.body||'') : '');
   alertData = {
     active: document.getElementById('alert-active-toggle').classList.contains('on'),
     title:  document.getElementById('alert-title-input').value.trim(),
     body:   document.getElementById('alert-body-input').value.trim(),
+    // Changes on every save (even if the text is identical) so that
+    // re-publishing the same alert reaches everyone again — including
+    // devices that already dismissed an earlier instance of it.
+    publishedAt: new Date().toISOString(),
   };
   const ok = await dbSet('lgu_alert', alertData);
   if (ok) {
     auditLog('save', `Emergency alert ${alertData.active?'ACTIVATED':'deactivated'}: "${alertData.title}"`, _currentUser);
     showToast(alertData.active ? '🚨 Alert is now LIVE on the site' : 'Alert deactivated ✓', alertData.active ? 'error' : 'success');
 
-    // Push a notification to every device that enabled alerts — but only
-    // when this is a genuinely new/changed active alert, not a re-save of
-    // the same one (avoids spamming subscribers on every unrelated edit).
-    const newFingerprint = alertData.active ? (alertData.title||'') + '|' + (alertData.body||'') : '';
-    if (alertData.active && newFingerprint !== prevFingerprint) {
+    // Push a notification to every device that enabled alerts, every time
+    // the alert is (re-)published — treating each Save-while-active as a
+    // deliberate 'notify everyone now' action, not just first-time-only.
+    if (alertData.active) {
       try {
         const resp = await fetch('/api/send-alert-push', {
           method: 'POST',
