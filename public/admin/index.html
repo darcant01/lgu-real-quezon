@@ -1290,6 +1290,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
       </div>
 
+      <!-- SITE SPEED -->
+      <div class="card">
+        <div class="card-header">
+          <div><h3>⚡ Website Speed</h3><p>Real measurement of how fast the live public site actually loads, taken right now.</p></div>
+          <button class="btn btn-ghost" id="speedtest-rerun-btn" onclick="runSiteSpeedTest()" style="display:none;">↻ Test Again</button>
+        </div>
+        <div class="card-body" id="speedtest-body">
+          <div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Running test…</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div><h3>Welcome back 👋</h3><p>Manage your site content from the sidebar.</p></div>
@@ -5191,6 +5202,7 @@ function sanitizeHtml(html) {
 function renderDash() {
   updateStats();
   renderComplianceDashboard();
+  runSiteSpeedTest();
   const el = document.getElementById('dash-recent-articles');
   const recent = articles.filter(a => a.published).slice(0, 3);
   if (!recent.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No published articles yet.</p>'; return; }
@@ -5204,6 +5216,60 @@ function renderDash() {
         <div style="font-size:0.72rem;color:var(--slate-l);">${a.date||''}</div>
       </div>
     </div>`).join('');
+}
+
+// ── SITE SPEED TEST ───────────────────────────────
+// Fetches the actual live homepage (same-origin, since admin is served
+// from the same deployment) and measures real timing with the browser's
+// own clock — a genuine, current measurement rather than a static claim.
+async function runSiteSpeedTest() {
+  const body = document.getElementById('speedtest-body');
+  const rerunBtn = document.getElementById('speedtest-rerun-btn');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Running test…</div>';
+  if (rerunBtn) rerunBtn.style.display = 'none';
+
+  try {
+    const t0 = performance.now();
+    const resp = await fetch('/', { cache: 'no-store' });
+    const t1 = performance.now(); // response headers arrived
+    const text = await resp.text();
+    const t2 = performance.now(); // full body downloaded
+
+    const ttfb = Math.round(t1 - t0);
+    const fullLoad = Math.round(t2 - t0);
+    const sizeKB = (new Blob([text]).size / 1024).toFixed(1);
+
+    const rating =
+      fullLoad < 300  ? { label: 'Excellent', color: '#38A169' } :
+      fullLoad < 800  ? { label: 'Good',      color: '#C9A227' } :
+      fullLoad < 1500 ? { label: 'Fair',      color: '#DD6B20' } :
+                         { label: 'Slow',      color: '#E53E3E' };
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:16px;">
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:${rating.color};font-family:'Playfair Display',serif;">${fullLoad}<span style="font-size:1rem;">ms</span></div>
+          <div style="font-size:0.72rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Homepage Load Time</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">${ttfb}<span style="font-size:1rem;">ms</span></div>
+          <div style="font-size:0.72rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Time to First Byte</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">${sizeKB}<span style="font-size:1rem;">KB</span></div>
+          <div style="font-size:0.72rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Page Size (HTML)</div>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:${rating.color}1A;border-left:3px solid ${rating.color};border-radius:4px;font-size:0.82rem;color:var(--slate);">
+        <strong style="color:${rating.color};">${rating.label}</strong> — measured just now by fetching the live homepage directly from your browser. Actual visitor speed also depends on their own connection and location.
+      </div>
+      <div style="margin-top:10px;font-size:0.72rem;color:var(--slate-l);">Tested at ${new Date().toLocaleTimeString()}</div>`;
+    if (rerunBtn) rerunBtn.style.display = '';
+  } catch (err) {
+    body.innerHTML = `<div style="text-align:center;padding:24px;color:var(--red);font-size:0.85rem;">Test failed: ${err.message||'network error'}</div>`;
+    if (rerunBtn) rerunBtn.style.display = '';
+  }
 }
 
 // ── COMPLIANCE DASHBOARD ──────────────────────────
