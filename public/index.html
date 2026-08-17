@@ -161,8 +161,8 @@
   .nav-title { display: flex; flex-direction: column; line-height: 1.1; }
   .nav-title strong { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--white); font-weight: 700; letter-spacing: 0.02em; }
   .nav-title span { font-size: 0.7rem; color: var(--sage); letter-spacing: 0.08em; text-transform: uppercase; }
-  .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; }
-  .nav-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.82rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.2s; }
+  .nav-links { display: flex; align-items: center; gap: 22px; list-style: none; }
+  .nav-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
   .nav-links a:hover { color: var(--gold); }
 
   /* About dropdown */
@@ -223,6 +223,7 @@
     letter-spacing: 0.05em !important;
     transition: border-color 0.2s, color 0.2s, background 0.2s !important;
     margin-left: 4px;
+    white-space: nowrap;
   }
   .nav-admin-btn:hover {
     border-color: rgba(201,162,39,0.5) !important;
@@ -1586,7 +1587,7 @@
       </div>
     </li>
     <li class="nav-dropdown">
-      <a href="#charter">Citizen's Charter ▾</a>
+      <a href="#charter">Charter ▾</a>
       <div class="nav-dropdown-menu" id="nav-charter-menu">
         <a href="javascript:void(0)" onclick="goToCharterCategory('all')">📋 All Services</a>
       </div>
@@ -1594,7 +1595,7 @@
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
     <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
-    <li><a href="javascript:void(0)" class="nav-admin-btn" onclick="enableEmergencyAlerts()" title="Get notified of emergency alerts on this device"><span class="js-alert-toggle-label">🔔 Get Alerts</span></a></li>
+    <li><a href="javascript:void(0)" class="nav-admin-btn" onclick="enableEmergencyAlerts()" title="Get notified of emergency alerts on this device"><span class="js-alert-toggle-label">🔔 Alerts</span></a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
@@ -3652,7 +3653,7 @@
   function _updateAlertBtnUI() {
     const enabled = Notification && Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
     document.querySelectorAll('.js-alert-toggle-label').forEach(el => {
-      el.textContent = enabled ? '🔔 Alerts On' : '🔔 Get Alerts';
+      el.textContent = enabled ? '🔔 On' : '🔔 Alerts';
     });
   }
 
