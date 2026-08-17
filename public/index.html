@@ -3670,6 +3670,28 @@
   function stopAlertSound() {
     try { _alertAudio.pause(); _alertAudio.currentTime = 0; } catch {}
   }
+  // Browsers block audio from playing unless it's triggered by a direct
+  // user gesture (click/tap) — a realtime alert arriving in the
+  // background doesn't count as one, so a play() call from that context
+  // gets silently blocked. Fix: "unlock" the audio element the moment
+  // the visitor interacts with the page at all (any click/tap, anywhere),
+  // by briefly playing+pausing it during that real gesture. Most browsers
+  // then allow later programmatic play() calls for the rest of the
+  // session, even from non-gesture contexts like the realtime handler.
+  function _unlockAlertAudio() {
+    try {
+      _alertAudio.muted = true;
+      _alertAudio.play().then(() => {
+        _alertAudio.pause();
+        _alertAudio.currentTime = 0;
+        _alertAudio.muted = false;
+      }).catch(() => { _alertAudio.muted = false; });
+    } catch {}
+    document.removeEventListener('click', _unlockAlertAudio);
+    document.removeEventListener('touchstart', _unlockAlertAudio);
+  }
+  document.addEventListener('click', _unlockAlertAudio, { once: true });
+  document.addEventListener('touchstart', _unlockAlertAudio, { once: true });
   function dismissAlertBanner() {
     const overlay = document.getElementById('alert-modal-overlay');
     const fingerprint = overlay ? overlay.dataset.fingerprint : '';
