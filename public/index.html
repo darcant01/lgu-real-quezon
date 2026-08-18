@@ -1616,7 +1616,19 @@
       </div>
     </li>
     <li><a href="#news">News</a></li>
-    <li><a href="#officials">Officials</a></li>
+    <li class="nav-dropdown">
+      <a href="#officials">Officials ▾</a>
+      <div class="nav-dropdown-menu nav-tourism-menu" id="nav-officials-menu">
+        <div class="tourism-menu-links" id="officials-menu-links">
+          <a href="#officials" onmouseenter="setOfficialPreview()">🏛️ All Officials</a>
+        </div>
+        <div class="tourism-menu-preview" id="officials-menu-preview">
+          <img id="officials-preview-img" alt="" style="display:none;">
+          <span id="officials-preview-fallback">🏛️</span>
+          <div class="tourism-preview-caption" id="officials-preview-caption" style="display:none;"></div>
+        </div>
+      </div>
+    </li>
     <li><a href="#programs">Programs</a></li>
     <li class="nav-dropdown">
       <a href="#tourism">Tourism ▾</a>
@@ -1694,7 +1706,11 @@
   </div>
 
   <a href="#news"          onclick="closeMobileNav()">📰 News & Updates</a>
-  <a href="#officials"     onclick="closeMobileNav()">🏛️ Elected Officials</a>
+  <div class="drawer-item-row">
+    <a href="#officials" onclick="closeMobileNav()">🏛️ Elected Officials</a>
+    <button class="drawer-toggle" onclick="toggleDrawerSubmenu(this)" aria-label="Expand Officials submenu">▾</button>
+  </div>
+  <div class="drawer-submenu" id="mobile-officials-submenu"></div>
   <a href="#programs"      onclick="closeMobileNav()">📋 Programs</a>
   <div class="drawer-section">Community</div>
   <a href="#events"        onclick="closeMobileNav()">📅 Events Calendar</a>
@@ -3040,6 +3056,7 @@
     if (!meta || !meta.length) return; // keep static fallback
     // Photos are now stored as public URLs directly on each official record
     const officials = meta;
+    window._pubOfficials = officials;
     const grid = document.getElementById('officials-grid');
     grid.innerHTML = officials.map((o, i) => {
       const isMayor = o.role && o.role.toLowerCase().includes('mayor') && !o.role.toLowerCase().includes('vice');
@@ -3049,7 +3066,7 @@
 
       if (isMayor) {
         return `
-          <div class="official-card mayor-card">
+          <div class="official-card mayor-card" id="official-card-${i}">
             <div class="mayor-avatar" style="${o.photo ? 'overflow:hidden;padding:0;' : ''}">${photoHtml}</div>
             <div class="mayor-info">
               <span class="mayor-role">${esc(o.role || 'Municipal Mayor')}</span>
@@ -3061,7 +3078,7 @@
           </div>`;
       }
       return `
-        <div class="official-card">
+        <div class="official-card" id="official-card-${i}">
           <div class="official-avatar" style="${o.photo ? 'overflow:hidden;padding:0;' : ''}">${photoHtml}</div>
           <h4>${esc(o.name || 'Hon. Official')}</h4>
           <span>${esc(o.role || 'Sangguniang Bayan')}</span>
@@ -3069,6 +3086,55 @@
           ${o.term  ? `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:2px;">Term: ${esc(o.term)}</div>`  : ''}
         </div>`;
     }).join('');
+
+    // Nav mega-menu: hover previews the official's photo, click scrolls
+    // straight to their card (with a brief highlight flash)
+    const navLinks = document.getElementById('officials-menu-links');
+    if (navLinks) {
+      navLinks.innerHTML = `
+        <a href="#officials" onmouseenter="setOfficialPreview()">🏛️ All Officials</a>
+        ${officials.map((o,i) =>
+          `<a href="javascript:void(0)" onmouseenter="setOfficialPreview(${i})" onclick="scrollToOfficial(${i})">${esc(o.emoji||'🧑‍💼')} ${esc(o.name||'')}</a>`
+        ).join('')}`;
+    }
+    // Mobile drawer: plain tappable list (no hover preview on touch)
+    const mobileMenu = document.getElementById('mobile-officials-submenu');
+    if (mobileMenu) {
+      mobileMenu.innerHTML = `
+        <a href="#officials" onclick="closeMobileNav()">🏛️ All Officials</a>
+        ${officials.map((o,i) =>
+          `<a href="javascript:void(0)" onclick="closeMobileNav();scrollToOfficial(${i})">${esc(o.emoji||'🧑‍💼')} ${esc(o.name||'')}</a>`
+        ).join('')}`;
+    }
+  }
+  // Updates the nav Officials dropdown's live photo preview pane.
+  function setOfficialPreview(idx) {
+    const o = (typeof idx === 'number') ? (window._pubOfficials || [])[idx] : null;
+    const img      = document.getElementById('officials-preview-img');
+    const fallback = document.getElementById('officials-preview-fallback');
+    const caption  = document.getElementById('officials-preview-caption');
+    if (!img || !fallback || !caption) return;
+    if (o && o.photo) {
+      img.src = o.photo; img.alt = o.name || '';
+      img.style.display = 'block'; fallback.style.display = 'none';
+      caption.textContent = o.name || ''; caption.style.display = 'block';
+    } else if (o) {
+      img.style.display = 'none'; fallback.style.display = 'block'; fallback.textContent = o.emoji || '🧑‍💼';
+      caption.textContent = o.name || ''; caption.style.display = 'block';
+    } else {
+      img.style.display = 'none'; fallback.style.display = 'block'; fallback.textContent = '🏛️';
+      caption.style.display = 'none';
+    }
+  }
+  // Scrolls to a specific official's card and gives it a brief highlight
+  function scrollToOfficial(idx) {
+    const card = document.getElementById('official-card-' + idx);
+    if (!card) { document.getElementById('officials')?.scrollIntoView({ behavior: 'smooth' }); return; }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.transition = 'box-shadow 0.3s, transform 0.3s';
+    card.style.boxShadow = '0 0 0 3px var(--gold), 0 12px 30px rgba(201,162,39,0.35)';
+    card.style.transform = 'scale(1.03)';
+    setTimeout(() => { card.style.boxShadow = ''; card.style.transform = ''; }, 1600);
   }
 
   // ── BRANDING (LOGO + SITE NAME) ───────────────────
