@@ -4128,6 +4128,26 @@
   }
   document.addEventListener('DOMContentLoaded', _updateAlertBtnUI);
 
+  // ── ANALYTICS (privacy-friendly, self-hosted) ───────
+  // Fires once per page load. No cookies, no IP logging, no
+  // persistent visitor ID — just a device type and referring site,
+  // stored in your own Supabase project. Honors the Do Not Track
+  // browser signal.
+  function trackPageview() {
+    try {
+      if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      let referrer = 'direct';
+      if (document.referrer) {
+        try { referrer = new URL(document.referrer).hostname || 'direct'; } catch {}
+      }
+      _sb.from('lgu_analytics_events').insert({
+        device: isMobile ? 'mobile' : 'desktop',
+        referrer,
+      }).then(() => {}).catch(() => {});
+    } catch {}
+  }
+
   // ── INIT ──────────────────────────────────────────
   (async () => {
     await prefetchAllContent(); // one request instead of 15
@@ -4137,6 +4157,7 @@
       loadBranding(), loadDocuments(), loadCharter(), loadBarangays(), loadDirectory(), loadFAQ()
     ]);
     subscribeToAlertRealtime();
+    trackPageview();
   })();
 </script>
 </body>

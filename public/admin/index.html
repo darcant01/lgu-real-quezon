@@ -1302,6 +1302,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
       </div>
 
+      <!-- VISITOR ANALYTICS -->
+      <div class="card">
+        <div class="card-header">
+          <div><h3>📈 Visitor Analytics</h3><p>Privacy-friendly, self-hosted — no cookies, no IP logging, no third-party service. Just anonymous visit counts.</p></div>
+          <button class="btn btn-ghost" onclick="loadAnalytics()">↻ Refresh</button>
+        </div>
+        <div class="card-body" id="analytics-body">
+          <div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div><h3>Welcome back 👋</h3><p>Manage your site content from the sidebar.</p></div>
@@ -5431,6 +5442,7 @@ function renderDash() {
   updateStats();
   renderComplianceDashboard();
   runSiteSpeedTest();
+  loadAnalytics();
   const el = document.getElementById('dash-recent-articles');
   const recent = articles.filter(a => a.published).slice(0, 3);
   if (!recent.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No published articles yet.</p>'; return; }
@@ -5444,6 +5456,126 @@ function renderDash() {
         <div style="font-size:0.72rem;color:var(--slate-l);">${a.date||''}</div>
       </div>
     </div>`).join('');
+}
+
+// ── VISITOR ANALYTICS ──────────────────────────────
+async function loadAnalytics() {
+  const body = document.getElementById('analytics-body');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>';
+
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
+  const { data, error } = await _sb
+    .from('lgu_analytics_events')
+    .select('device,referrer,created_at')
+    .gte('created_at', since.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(20000);
+
+  if (error) {
+    body.innerHTML = `<div style="padding:16px;background:#FFF5F5;border-left:3px solid var(--red);border-radius:4px;font-size:0.82rem;color:var(--slate);">
+      Analytics table not set up yet — run <code>supabase/migrations/009_analytics.sql</code> in the Supabase SQL Editor, then refresh.
+    </div>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">No visits recorded yet — check back after the site has had some traffic.</div>';
+    return;
+  }
+
+  const now = new Date();
+  const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+  const today0 = startOfDay(now);
+  const week0  = new Date(today0); week0.setDate(week0.getDate() - 6);
+  const month0 = new Date(today0); month0.setDate(month0.getDate() - 29);
+
+  let viewsToday = 0, viewsWeek = 0, viewsMonth = 0;
+  let mobileCount = 0, desktopCount = 0;
+  const referrerCounts = {};
+  const dailyCounts = {}; // 'YYYY-MM-DD' -> count, for the last 14 days
+
+  const day14ago = new Date(today0); day14ago.setDate(day14ago.getDate() - 13);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(day14ago); d.setDate(d.getDate() + i);
+    dailyCounts[d.toISOString().slice(0,10)] = 0;
+  }
+
+  data.forEach(ev => {
+    const created = new Date(ev.created_at);
+    if (created >= today0) viewsToday++;
+    if (created >= week0)  viewsWeek++;
+    if (created >= month0) viewsMonth++;
+    if (ev.device === 'mobile') mobileCount++; else if (ev.device === 'desktop') desktopCount++;
+    const ref = ev.referrer || 'direct';
+    referrerCounts[ref] = (referrerCounts[ref] || 0) + 1;
+    const dayKey = created.toISOString().slice(0,10);
+    if (dayKey in dailyCounts) dailyCounts[dayKey]++;
+  });
+
+  const totalDevices = mobileCount + desktopCount || 1;
+  const mobilePct = Math.round(mobileCount / totalDevices * 100);
+  const desktopPct = 100 - mobilePct;
+
+  const topReferrers = Object.entries(referrerCounts)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const dailyEntries = Object.entries(dailyCounts);
+  const maxDaily = Math.max(1, ...dailyEntries.map(([,c]) => c));
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px;margin-bottom:24px;">
+      <div style="text-align:center;">
+        <div style="font-size:1.8rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">${viewsToday}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Today</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.8rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">${viewsWeek}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Last 7 Days</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.8rem;font-weight:800;color:var(--gold);font-family:'Playfair Display',serif;">${viewsMonth}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Last 30 Days</div>
+      </div>
+    </div>
+
+    <div style="font-size:0.72rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Daily Visits — Last 14 Days</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:70px;margin-bottom:24px;">
+      ${dailyEntries.map(([day, count]) => {
+        const h = Math.max(3, Math.round(count / maxDaily * 60));
+        const label = new Date(day + 'T00:00:00').toLocaleDateString('en-PH', { day:'numeric' });
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;" title="${day}: ${count} visit${count!==1?'s':''}">
+          <div style="width:100%;height:${h}px;background:var(--forest);border-radius:3px 3px 0 0;"></div>
+          <span style="font-size:0.6rem;color:var(--slate-l);">${label}</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div>
+        <div style="font-size:0.72rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Device</div>
+        <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+          <div style="width:${mobilePct}%;background:var(--forest);"></div>
+          <div style="width:${desktopPct}%;background:var(--gold);"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--slate);display:flex;justify-content:space-between;">
+          <span>📱 Mobile ${mobilePct}%</span>
+          <span>🖥️ Desktop ${desktopPct}%</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:0.72rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Top Sources</div>
+        ${topReferrers.map(([ref, count]) => `
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;padding:4px 0;color:var(--slate);">
+            <span>${ref === 'direct' ? '🔗 Direct' : escHtml(ref)}</span>
+            <span style="color:var(--slate-l);">${count}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div style="margin-top:16px;font-size:0.7rem;color:var(--slate-l);">Based on ${data.length.toLocaleString()} recorded visit${data.length!==1?'s':''} in the last 90 days.</div>`;
 }
 
 // ── SITE SPEED TEST ───────────────────────────────
