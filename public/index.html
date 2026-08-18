@@ -210,11 +210,12 @@
   .nav-cta { background: var(--gold); color: var(--forest-d) !important; padding: 8px 18px; border-radius: 4px; font-weight: 600 !important; }
   .nav-cta:hover { background: var(--gold-l) !important; }
 
-  /* Floating Contact button — bottom-right, positioned above where the
-     alert badges (bottom:22px) sit, so it stacks cleanly above them
-     rather than overlapping regardless of which alert buttons show. */
+  /* Floating Contact button — bottom-right, at the base of the floating
+     button stack. The minimized-alert badge (bottom:98px) sits above
+     it when active, so Contact is always reachable at the bottom
+     regardless of whether an alert badge is currently showing. */
   .floating-contact-btn {
-    position: fixed; bottom: 96px; right: 22px; z-index: 585;
+    position: fixed; bottom: 22px; right: 22px; z-index: 585;
     height: 46px; padding: 0 18px 0 15px; border-radius: 23px;
     background: var(--gold); color: var(--forest-d);
     display: flex; align-items: center; gap: 8px;
@@ -3283,7 +3284,7 @@
     btn.title = 'Emergency Alert — tap to view';
     btn.setAttribute('aria-label', 'View emergency alert');
     btn.onclick = reopenAlertModal;
-    btn.style.cssText = 'position:fixed;bottom:22px;right:22px;width:58px;height:58px;border-radius:50%;background:#C0392B;border:3px solid white;box-shadow:0 10px 28px rgba(192,57,43,0.55);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;z-index:590;animation:blink-emergency 1.6s steps(1,end) infinite;padding:0;';
+    btn.style.cssText = 'position:fixed;bottom:98px;right:22px;width:58px;height:58px;border-radius:50%;background:#C0392B;border:3px solid white;box-shadow:0 10px 28px rgba(192,57,43,0.55);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;z-index:590;animation:blink-emergency 1.6s steps(1,end) infinite;padding:0;';
     btn.textContent = '🚨';
     document.body.appendChild(btn);
   }
