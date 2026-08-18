@@ -2977,6 +2977,22 @@ async function uploadDataUrlToStorage(dataUrl, bucket, folder = '') {
   return pub.publicUrl;
 }
 
+// Uploads a raw File object directly — for non-image documents
+// (PDF/Word/Excel) that don't go through the image resize pipeline.
+// Used by the Public Documents uploader.
+async function uploadRawFileToStorage(file, bucket, folder = '') {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const name = `${folder}${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+  const { data, error } = await _sb.storage.from(bucket).upload(name, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || 'application/octet-stream',
+  });
+  if (error) throw error;
+  const { data: pub } = _sb.storage.from(bucket).getPublicUrl(data.path);
+  return pub.publicUrl;
+}
+
 // Shared storage (text/metadata) — backed by live Supabase lgu_kv table
 async function sharedGet(key) {
   try {
@@ -3676,7 +3692,7 @@ function renderDocumentsEditor() {
   if (!documents.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No documents yet. Click + Add Document.</p>'; return; }
   el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;">` +
     documents.map((d,i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.3fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);">
       <div>
         <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Title *</div>
         <input type="text" value="${escHtml(d.title||'')}" placeholder="Document title" oninput="documents[${i}].title=this.value"
@@ -3690,20 +3706,64 @@ function renderDocumentsEditor() {
       </div>
       <div>
         <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">File Type</div>
-        <select oninput="documents[${i}].type=this.value" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+        <select id="doc-type-${i}" oninput="documents[${i}].type=this.value" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
           ${DOC_TYPES.map(t=>`<option value="${t}" ${d.type===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </div>
       <div>
-        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Link URL *</div>
-        <input type="text" value="${escHtml(d.url||'')}" placeholder="https://drive.google.com/..." oninput="documents[${i}].url=this.value"
-          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">File *</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="doc-url-${i}" value="${escHtml(d.url||'')}" placeholder="Upload a file, or paste a link" oninput="documents[${i}].url=this.value"
+            style="flex:1;min-width:0;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.78rem;font-family:'Inter',sans-serif;outline:none;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('doc-file-input-${i}').click()" title="Upload a file from your device" style="flex-shrink:0;white-space:nowrap;">📤</button>
+          <input type="file" id="doc-file-input-${i}" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" style="display:none" onchange="handleDocumentFileUpload(event, ${i})">
+        </div>
+        ${d.url && d.url !== '#' ? `<div style="font-size:0.68rem;color:var(--green);margin-top:3px;">✓ File attached</div>` : ''}
       </div>
       <button class="btn btn-danger btn-sm" onclick="deleteDocument(${i})" title="Remove">🗑</button>
     </div>`).join('') + '</div>';
 }
+// Uploads the picked file straight to Supabase Storage (lgu-docs bucket)
+// and fills in the URL field automatically — no need to host the file
+// elsewhere and paste a link, though that still works as an alternative.
+async function handleDocumentFileUpload(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 15 * 1024 * 1024) {
+    showToast('File too large (max 15 MB)', 'error');
+    event.target.value = '';
+    return;
+  }
+  showToast('Uploading file…');
+  try {
+    const publicUrl = await uploadRawFileToStorage(file, 'lgu-docs', 'documents/');
+    documents[idx].url = publicUrl;
+
+    // Auto-detect the File Type dropdown from the extension, if not already set
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const extToType = { pdf:'PDF', doc:'Word', docx:'Word', xls:'Excel', xlsx:'Excel', png:'Image', jpg:'Image', jpeg:'Image', webp:'Image' };
+    if (extToType[ext]) documents[idx].type = extToType[ext];
+
+    renderDocumentsEditor();
+    showToast(`"${file.name}" uploaded ✓ (click Save to publish)`);
+  } catch (err) {
+    console.error('[document upload]', err);
+    showToast('Upload failed — check your connection and try again', 'error');
+  }
+  event.target.value = '';
+}
 function addDocument() { documents.push({ title:'', category:'Budget', type:'PDF', url:'' }); renderDocumentsEditor(); }
-function deleteDocument(i) { if(!confirm('Remove this document?'))return; documents.splice(i,1); renderDocumentsEditor(); showToast('Removed'); }
+function deleteDocument(i) {
+  if(!confirm('Remove this document?'))return;
+  const removed = documents[i];
+  documents.splice(i,1); renderDocumentsEditor(); showToast('Removed');
+  if (removed?.url && removed.url.includes('/lgu-docs/')) {
+    try {
+      const path = removed.url.split('/lgu-docs/')[1];
+      if (path) _sb.storage.from('lgu-docs').remove([decodeURIComponent(path)]);
+    } catch {}
+  }
+}
 async function saveDocuments() {
   const ok = await dbSet('lgu_documents', documents);
   if (ok) showToast(`Documents saved — ${documents.length} file${documents.length!==1?'s':''} ✓`);
