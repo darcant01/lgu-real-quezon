@@ -1313,6 +1313,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
       </div>
 
+      <!-- ALERT SUBSCRIBERS -->
+      <div class="card">
+        <div class="card-header">
+          <div><h3>🔔 Emergency Alert Subscribers</h3><p>How many devices have enabled push notifications for the Emergency Alert.</p></div>
+          <button class="btn btn-ghost" onclick="loadSubscriberStats()">↻ Refresh</button>
+        </div>
+        <div class="card-body" id="subscriber-stats-body">
+          <div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div><h3>Welcome back 👋</h3><p>Manage your site content from the sidebar.</p></div>
@@ -3769,7 +3780,7 @@ function renderDocumentsEditor() {
   if (!documents.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No documents yet. Click + Add Document.</p>'; return; }
   el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;">` +
     documents.map((d,i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.3fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);">
+    <div style="display:grid;grid-template-columns:1fr 0.9fr 0.7fr 1fr 1.3fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);">
       <div>
         <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Title *</div>
         <input type="text" value="${escHtml(d.title||'')}" placeholder="Document title" oninput="documents[${i}].title=this.value"
@@ -3780,6 +3791,11 @@ function renderDocumentsEditor() {
         <select oninput="documents[${i}].category=this.value" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
           ${DOC_CATS.map(c=>`<option value="${c}" ${d.category===c?'selected':''}>${c}</option>`).join('')}
         </select>
+      </div>
+      <div>
+        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Year</div>
+        <input type="number" value="${escHtml(d.year||'')}" placeholder="2026" min="1900" max="2100" oninput="documents[${i}].year=this.value"
+          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
       </div>
       <div>
         <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">File Type</div>
@@ -3829,7 +3845,7 @@ async function handleDocumentFileUpload(event, idx) {
   }
   event.target.value = '';
 }
-function addDocument() { documents.push({ title:'', category:'Budget', type:'PDF', url:'' }); renderDocumentsEditor(); }
+function addDocument() { documents.push({ title:'', category:'Budget', year:new Date().getFullYear().toString(), type:'PDF', url:'' }); renderDocumentsEditor(); }
 function deleteDocument(i) {
   if(!confirm('Remove this document?'))return;
   const removed = documents[i];
@@ -5443,6 +5459,7 @@ function renderDash() {
   renderComplianceDashboard();
   runSiteSpeedTest();
   loadAnalytics();
+  loadSubscriberStats();
   const el = document.getElementById('dash-recent-articles');
   const recent = articles.filter(a => a.published).slice(0, 3);
   if (!recent.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No published articles yet.</p>'; return; }
@@ -5576,6 +5593,92 @@ async function loadAnalytics() {
       </div>
     </div>
     <div style="margin-top:16px;font-size:0.7rem;color:var(--slate-l);">Based on ${data.length.toLocaleString()} recorded visit${data.length!==1?'s':''} in the last 90 days.</div>`;
+}
+
+// ── EMERGENCY ALERT SUBSCRIBERS ────────────────────
+// Uses the get_push_subscription_timestamps() database function instead
+// of querying lgu_push_subscriptions directly — that table has no public
+// SELECT policy on purpose (prevents harvesting subscriber endpoints for
+// spam), so this RPC is the only safe way to see subscriber counts from
+// the admin panel, which shares the same anon key as the public site.
+async function loadSubscriberStats() {
+  const body = document.getElementById('subscriber-stats-body');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>';
+
+  const { data, error } = await _sb.rpc('get_push_subscription_timestamps', { days_back: 90 });
+
+  if (error) {
+    body.innerHTML = `<div style="padding:16px;background:#FFF5F5;border-left:3px solid var(--red);border-radius:4px;font-size:0.82rem;color:var(--slate);">
+      Not set up yet — run <code>supabase/migrations/010_push_subscriber_stats_function.sql</code> in the Supabase SQL Editor, then refresh.
+    </div>`;
+    return;
+  }
+
+  const total = data ? data.length : 0;
+  if (!total) {
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">No one has enabled alerts yet. The 🔔 badge is visible on the public site for any visitor to turn on.</div>';
+    return;
+  }
+
+  const now = new Date();
+  const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+  const today0 = startOfDay(now);
+  const week0  = new Date(today0); week0.setDate(week0.getDate() - 6);
+  const month0 = new Date(today0); month0.setDate(month0.getDate() - 29);
+
+  let newToday = 0, newWeek = 0, newMonth = 0;
+  const dailyCounts = {};
+  const day14ago = new Date(today0); day14ago.setDate(day14ago.getDate() - 13);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(day14ago); d.setDate(d.getDate() + i);
+    dailyCounts[d.toISOString().slice(0,10)] = 0;
+  }
+
+  data.forEach(row => {
+    const created = new Date(row.created_at);
+    if (created >= today0) newToday++;
+    if (created >= week0)  newWeek++;
+    if (created >= month0) newMonth++;
+    const dayKey = created.toISOString().slice(0,10);
+    if (dayKey in dailyCounts) dailyCounts[dayKey]++;
+  });
+
+  const dailyEntries = Object.entries(dailyCounts);
+  const maxDaily = Math.max(1, ...dailyEntries.map(([,c]) => c));
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px;margin-bottom:24px;">
+      <div style="text-align:center;">
+        <div style="font-size:1.9rem;font-weight:800;color:var(--gold);font-family:'Playfair Display',serif;">${total}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Total Subscribers</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">+${newToday}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">New Today</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">+${newWeek}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">New This Week</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:800;color:var(--forest);font-family:'Playfair Display',serif;">+${newMonth}</div>
+        <div style="font-size:0.68rem;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">New This Month</div>
+      </div>
+    </div>
+
+    <div style="font-size:0.72rem;font-weight:700;color:var(--slate-l);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">New Subscribers — Last 14 Days</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:70px;">
+      ${dailyEntries.map(([day, count]) => {
+        const h = Math.max(3, Math.round(count / maxDaily * 60));
+        const label = new Date(day + 'T00:00:00').toLocaleDateString('en-PH', { day:'numeric' });
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;" title="${day}: ${count} new">
+          <div style="width:100%;height:${h}px;background:var(--gold);border-radius:3px 3px 0 0;"></div>
+          <span style="font-size:0.6rem;color:var(--slate-l);">${label}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:16px;font-size:0.7rem;color:var(--slate-l);">Subscriptions from the last 90 days shown. Note: this counts devices/browsers, not unique people — someone with 2 devices enabled counts as 2.</div>`;
 }
 
 // ── SITE SPEED TEST ───────────────────────────────

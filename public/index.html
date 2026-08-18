@@ -911,9 +911,13 @@
 
   /* ── TRANSPARENCY & DOCUMENTS ── */
   .transparency { padding: 90px 8%; background: var(--white); }
-  .doc-categories { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+  .doc-categories { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
   .doc-cat-btn { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 0.78rem; font-weight: 600; cursor: pointer; color: var(--slate); font-family: 'Inter', sans-serif; transition: all 0.15s; }
   .doc-cat-btn:hover, .doc-cat-btn.active { background: var(--forest); color: white; border-color: var(--forest); }
+  .doc-years { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .doc-years-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--slate-l); margin-right: 4px; }
+  .doc-year-btn { padding: 5px 13px; border-radius: 16px; border: 1.5px solid var(--border); background: white; font-size: 0.74rem; font-weight: 600; cursor: pointer; color: var(--slate); font-family: 'Inter', sans-serif; transition: all 0.15s; }
+  .doc-year-btn:hover, .doc-year-btn.active { background: var(--gold); color: var(--forest-d); border-color: var(--gold); }
   .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .doc-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid rgba(26,60,46,0.1); border-radius: 10px; background: linear-gradient(145deg, #FDFAF4, var(--cream)); text-decoration: none; color: var(--slate); transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s; box-shadow: 0 2px 8px rgba(26,60,46,0.05), 0 1px 0 rgba(255,255,255,0.9) inset; }
   .doc-card:hover { border-color: var(--forest-l); transform: translateY(-5px) scale(1.01); box-shadow: 0 14px 36px rgba(26,60,46,0.14), 0 4px 8px rgba(0,0,0,0.06); }
@@ -2078,8 +2082,9 @@
   <h2 class="section-title">Transparency & Public Documents</h2>
   <p class="section-sub">Access official reports, ordinances, budgets, and public records of the Municipality of Real.</p>
   <div class="doc-categories" id="doc-categories">
-    <button class="doc-cat-btn active" onclick="filterDocs('all', this)">All Documents</button>
+    <button class="doc-cat-btn active" onclick="filterDocsByCategory('all', this)">All Documents</button>
   </div>
+  <div class="doc-years" id="doc-years" style="display:none;"></div>
   <div class="doc-grid" id="doc-grid">
     <div class="doc-empty">No documents published yet.</div>
   </div>
@@ -3712,17 +3717,39 @@
 
   // ── TRANSPARENCY / DOCUMENTS ──────────────────────
   let _allDocs = [];
+  let _activeDocCategory = 'all';
+  let _activeDocYear = 'all';
   async function loadDocuments() {
     const docs = await safeGet('lgu_documents');
     if (!docs || !docs.length) return;
     _allDocs = docs;
+    _activeDocCategory = 'all';
+    _activeDocYear = 'all';
+
     // Build category buttons
     const cats = ['All Documents', ...new Set(docs.map(d => d.category).filter(Boolean))];
     const catEl = document.getElementById('doc-categories');
     catEl.innerHTML = cats.map((c,i) =>
-      `<button class="doc-cat-btn${i===0?' active':''}" onclick="filterDocs('${esc(i===0?'all':c)}',this)">${esc(c)}</button>`
+      `<button class="doc-cat-btn${i===0?' active':''}" onclick="filterDocsByCategory('${esc(i===0?'all':c)}',this)">${esc(c)}</button>`
     ).join('');
-    filterDocs('all', catEl.firstElementChild);
+
+    // Build year buttons — only shown if at least one document has a year set
+    const years = [...new Set(docs.map(d => d.year).filter(Boolean))].sort((a,b) => b - a);
+    const yearEl = document.getElementById('doc-years');
+    if (yearEl) {
+      if (years.length) {
+        yearEl.style.display = 'flex';
+        yearEl.innerHTML = '<span class="doc-years-label">📅 Year</span>' +
+          ['All Years', ...years].map((y,i) =>
+            `<button class="doc-year-btn${i===0?' active':''}" onclick="filterDocsByYear('${i===0?'all':esc(String(y))}',this)">${esc(String(y))}</button>`
+          ).join('');
+      } else {
+        yearEl.style.display = 'none';
+        yearEl.innerHTML = '';
+      }
+    }
+
+    applyDocFilters();
 
     // Keep the nav dropdown and mobile drawer in sync with the same categories
     const navMenu = document.getElementById('nav-docs-menu');
@@ -3748,20 +3775,32 @@
       if (target) target.click();
     }, 350);
   }
-  function filterDocs(cat, btn) {
+  function filterDocsByCategory(cat, btn) {
     document.querySelectorAll('.doc-cat-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    const filtered = cat === 'all' ? _allDocs : _allDocs.filter(d => d.category === cat);
+    _activeDocCategory = cat;
+    applyDocFilters();
+  }
+  function filterDocsByYear(year, btn) {
+    document.querySelectorAll('.doc-year-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    _activeDocYear = year;
+    applyDocFilters();
+  }
+  function applyDocFilters() {
+    let filtered = _allDocs;
+    if (_activeDocCategory !== 'all') filtered = filtered.filter(d => d.category === _activeDocCategory);
+    if (_activeDocYear !== 'all') filtered = filtered.filter(d => String(d.year||'') === String(_activeDocYear));
     window._docsPreviewList = filtered;
     const grid = document.getElementById('doc-grid');
-    if (!filtered.length) { grid.innerHTML = '<div class="doc-empty">No documents in this category.</div>'; return; }
+    if (!filtered.length) { grid.innerHTML = '<div class="doc-empty">No documents match these filters.</div>'; return; }
     const TYPE_ICONS = { PDF:'📄', Word:'📝', Excel:'📊', Image:'🖼️', Other:'📎' };
     grid.innerHTML = filtered.map((d,i) => `
       <a href="javascript:void(0)" class="doc-card" onclick="openDocumentPreview(${i})">
         <div class="doc-icon">${TYPE_ICONS[d.type]||'📎'}</div>
         <div class="doc-meta">
           <h4>${esc(d.title)}</h4>
-          <span>${esc(d.category||'')}${d.date?' · '+esc(d.date):''}</span>
+          <span>${esc(d.category||'')}${d.year?' · '+esc(String(d.year)):''}</span>
         </div>
         <span class="doc-download">👁️</span>
       </a>`).join('');
@@ -3803,7 +3842,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #EAE5DB;flex-shrink:0;">
         <div style="min-width:0;">
           <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:#0F2419;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;">${esc(d.title)}</h3>
-          <span style="font-size:0.75rem;color:#718096;">${esc(d.category||'')}${d.date?' · '+esc(d.date):''}</span>
+          <span style="font-size:0.75rem;color:#718096;">${esc(d.category||'')}${d.year?' · '+esc(String(d.year)):''}</span>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
           ${hasFile ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="background:#C9A227;color:#1A3C2E;padding:8px 16px;border-radius:6px;text-decoration:none;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:700;white-space:nowrap;">↓ Download</a>` : ''}
