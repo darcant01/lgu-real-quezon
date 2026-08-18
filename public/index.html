@@ -216,16 +216,14 @@
      regardless of whether an alert badge is currently showing. */
   .floating-contact-btn {
     position: fixed; bottom: 22px; right: 22px; z-index: 585;
-    height: 46px; padding: 0 18px 0 15px; border-radius: 23px;
+    width: 58px; height: 58px; border-radius: 50%; border: 3px solid white;
     background: var(--gold); color: var(--forest-d);
-    display: flex; align-items: center; gap: 8px;
-    text-decoration: none; font-family: 'Inter', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
     box-shadow: 0 10px 26px rgba(201,162,39,0.45), 0 2px 8px rgba(0,0,0,0.15);
     transition: background 0.2s, transform 0.2s;
   }
   .floating-contact-btn:hover { background: var(--gold-l); transform: translateY(-2px); }
-  .floating-contact-label { white-space: nowrap; }
 
   /* Admin login button — subtle, staff-only feel */
   .nav-admin-btn {
@@ -1607,8 +1605,7 @@
      (bottom:22px is reserved for the alert-enable / minimized-alert
      buttons) so nothing overlaps regardless of which are showing. -->
 <a href="#contact" class="floating-contact-btn" title="Contact Us" aria-label="Contact Us">
-  <span style="font-size:20px;">✉️</span>
-  <span class="floating-contact-label">Contact</span>
+  <span style="font-size:24px;">✉️</span>
 </a>
 
 <!-- MOBILE NAV DRAWER -->
