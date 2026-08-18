@@ -3716,18 +3716,68 @@
     document.querySelectorAll('.doc-cat-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     const filtered = cat === 'all' ? _allDocs : _allDocs.filter(d => d.category === cat);
+    window._docsPreviewList = filtered;
     const grid = document.getElementById('doc-grid');
     if (!filtered.length) { grid.innerHTML = '<div class="doc-empty">No documents in this category.</div>'; return; }
     const TYPE_ICONS = { PDF:'📄', Word:'📝', Excel:'📊', Image:'🖼️', Other:'📎' };
-    grid.innerHTML = filtered.map(d => `
-      <a class="doc-card" href="${esc(d.url||'#')}" target="_blank" rel="noopener">
+    grid.innerHTML = filtered.map((d,i) => `
+      <a href="javascript:void(0)" class="doc-card" onclick="openDocumentPreview(${i})">
         <div class="doc-icon">${TYPE_ICONS[d.type]||'📎'}</div>
         <div class="doc-meta">
           <h4>${esc(d.title)}</h4>
           <span>${esc(d.category||'')}${d.date?' · '+esc(d.date):''}</span>
         </div>
-        <span class="doc-download">↓</span>
+        <span class="doc-download">👁️</span>
       </a>`).join('');
+  }
+  // Opens a document in an in-page preview modal instead of navigating
+  // away — PDFs and images render directly; Office files (Word/Excel)
+  // fall back to Google's public document viewer, since browsers can't
+  // natively preview those inline. A Download button is always
+  // available alongside the preview.
+  function openDocumentPreview(i) {
+    const d = (window._docsPreviewList || [])[i];
+    if (!d) return;
+    const url = (d.url || '').trim();
+    const hasFile = url && url !== '#';
+
+    let previewHtml;
+    if (!hasFile) {
+      previewHtml = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#718096;font-size:0.9rem;padding:40px;text-align:center;">No file has been uploaded for this document yet.</div>`;
+    } else {
+      const lower = url.toLowerCase();
+      const isPdf   = d.type === 'PDF'   || lower.endsWith('.pdf');
+      const isImage = d.type === 'Image' || /\.(png|jpe?g|gif|webp)$/.test(lower);
+      if (isPdf) {
+        previewHtml = `<iframe src="${esc(url)}" style="flex:1;border:none;width:100%;" title="${esc(d.title)}"></iframe>`;
+      } else if (isImage) {
+        previewHtml = `<div style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:#F5F0E8;"><img src="${esc(url)}" style="max-width:100%;max-height:100%;object-fit:contain;" alt="${esc(d.title)}"></div>`;
+      } else {
+        const viewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url) + '&embedded=true';
+        previewHtml = `<iframe src="${viewerUrl}" style="flex:1;border:none;width:100%;" title="${esc(d.title)}"></iframe>`;
+      }
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:520;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:900px;width:100%;height:85vh;box-shadow:0 30px 70px rgba(0,0,0,0.4);overflow:hidden;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #EAE5DB;flex-shrink:0;">
+        <div style="min-width:0;">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:#0F2419;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;">${esc(d.title)}</h3>
+          <span style="font-size:0.75rem;color:#718096;">${esc(d.category||'')}${d.date?' · '+esc(d.date):''}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          ${hasFile ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="background:#C9A227;color:#1A3C2E;padding:8px 16px;border-radius:6px;text-decoration:none;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:700;white-space:nowrap;">↓ Download</a>` : ''}
+          <button onclick="this.closest('.lgu-modal-overlay').remove()" style="background:#1A3C2E;color:white;padding:8px 16px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">✕ Close</button>
+        </div>
+      </div>
+      ${previewHtml}`;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   // ── CITIZEN'S CHARTER ─────────────────────────────
