@@ -2378,6 +2378,18 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
 
         <div class="resize-preset-group">
+          <div class="resize-preset-group-label">📦 Original File</div>
+          <button class="preset-btn" id="original-size-btn" onclick="selectOriginalSize()">
+            <div class="preset-icon">💎</div>
+            <div class="preset-info">
+              <div class="preset-name">Use Original Size &amp; Quality</div>
+              <div class="preset-desc">Uploads the exact file you selected — no resizing or recompression</div>
+              <div class="preset-size" id="original-size-label">— × — px</div>
+            </div>
+          </button>
+        </div>
+
+        <div class="resize-preset-group">
           <div class="resize-preset-group-label">⚙️ Custom Size</div>
           <div class="custom-size-row">
             <input type="number" id="custom-w" placeholder="Width" min="50" max="2000" oninput="onCustomInput('w')">
@@ -3155,11 +3167,13 @@ let _resizeCtx = {
   img: null,          // HTMLImageElement of original
   originalW: 0,
   originalH: 0,
+  originalDataUrl: '', // exact bytes of the file as picked, for "Use Original" mode
   targetW: 0,
   targetH: 0,
   quality: 0.88,
   aspectRatio: 1,
   aspectLocked: true,
+  useOriginal: false,  // true = skip canvas re-encode, upload original file as-is
   onConfirm: null,    // callback(dataUrl) after user confirms
   selectedBtn: null,
 };
@@ -3170,14 +3184,17 @@ function openResizeModal(dataUrl, defaultPresetFn, onConfirm) {
     _resizeCtx.img       = img;
     _resizeCtx.originalW = img.naturalWidth;
     _resizeCtx.originalH = img.naturalHeight;
+    _resizeCtx.originalDataUrl = dataUrl;
     _resizeCtx.aspectRatio = img.naturalWidth / img.naturalHeight;
     _resizeCtx.aspectLocked = true;
     _resizeCtx.quality   = 0.88;
+    _resizeCtx.useOriginal = false;
     _resizeCtx.onConfirm = onConfirm;
     _resizeCtx.selectedBtn = null;
 
     // Reset UI
     document.getElementById('quality-slider').value = 88;
+    document.getElementById('quality-slider').disabled = false;
     document.getElementById('quality-val').textContent = '88%';
     document.getElementById('lock-icon').textContent  = '🔒';
     document.getElementById('lock-label').textContent = 'Aspect ratio locked';
@@ -3185,6 +3202,7 @@ function openResizeModal(dataUrl, defaultPresetFn, onConfirm) {
     document.getElementById('custom-w').value = '';
     document.getElementById('custom-h').value = '';
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('original-size-label').textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
 
     // File info
     document.getElementById('resize-file-info').innerHTML =
@@ -3228,6 +3246,8 @@ function selectPreset(btn, w, h, key) {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   _resizeCtx.selectedBtn = btn;
+  _resizeCtx.useOriginal = false;
+  document.getElementById('quality-slider').disabled = false;
 
   // Fit dimensions: if image is smaller, don't upscale beyond 2×
   const maxW = Math.min(w, _resizeCtx.originalW * 2);
@@ -3238,6 +3258,23 @@ function selectPreset(btn, w, h, key) {
   renderCanvas(finalW, finalH);
   document.getElementById('custom-w').value = finalW;
   document.getElementById('custom-h').value = finalH;
+}
+// "Use Original Size & Quality" — uploads the exact file as picked, no
+// canvas re-encode, no resizing, no recompression. Useful for archival
+// documents/photos or when the admin has already optimized the file
+// themselves and doesn't want this tool touching it further.
+function selectOriginalSize() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+  const btn = document.getElementById('original-size-btn');
+  btn.classList.add('selected');
+  _resizeCtx.selectedBtn = btn;
+  _resizeCtx.useOriginal = true;
+  document.getElementById('quality-slider').disabled = true;
+  document.getElementById('custom-w').value = _resizeCtx.originalW;
+  document.getElementById('custom-h').value = _resizeCtx.originalH;
+  renderCanvas(_resizeCtx.originalW, _resizeCtx.originalH);
+  document.getElementById('resize-dims').innerHTML =
+    `<strong>${_resizeCtx.originalW} × ${_resizeCtx.originalH} px</strong> &nbsp;·&nbsp; 100% of original (no recompression)`;
 }
 
 function onCustomInput(changed) {
@@ -3252,6 +3289,8 @@ function onCustomInput(changed) {
   }
   // Deselect presets on custom input
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+  _resizeCtx.useOriginal = false;
+  document.getElementById('quality-slider').disabled = false;
 }
 
 function applyCustomSize() {
@@ -3259,7 +3298,10 @@ function applyCustomSize() {
   const h = parseInt(document.getElementById('custom-h').value);
   if (!w || !h || w < 10 || h < 10) return showToast('Enter valid width and height', 'error');
   if (w > 3000 || h > 3000) return showToast('Maximum 3000 px per side', 'error');
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
   document.getElementById('custom-apply-btn').classList.add('selected');
+  _resizeCtx.useOriginal = false;
+  document.getElementById('quality-slider').disabled = false;
   renderCanvas(w, h);
 }
 
@@ -3275,6 +3317,13 @@ function onQualityChange(val) {
 }
 
 function confirmResize() {
+  if (_resizeCtx.useOriginal) {
+    // Skip the canvas entirely — pass through the exact original file
+    // bytes (format, quality, everything) untouched.
+    document.getElementById('resize-modal').classList.remove('open');
+    if (_resizeCtx.onConfirm) _resizeCtx.onConfirm(_resizeCtx.originalDataUrl, _resizeCtx.originalW, _resizeCtx.originalH);
+    return;
+  }
   const canvas = document.getElementById('resize-canvas');
   if (!canvas.width || !canvas.height) return;
   const dataUrl = canvas.toDataURL('image/jpeg', _resizeCtx.quality);
