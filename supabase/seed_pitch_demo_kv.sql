@@ -65,7 +65,7 @@ INSERT INTO lgu_kv (key, value) VALUES
   {"icon":"🤝","title":"Social Welfare","desc":"Avail of assistance programs for senior citizens, PWDs, solo parents, and indigent families.","link":"#directory","arrow":"Learn More"},
   {"icon":"📜","title":"Certifications","desc":"Request barangay clearance, indigency certificates, and residency certifications.","link":"#directory","arrow":"Learn More"},
   {"icon":"🌳","title":"Environmental Office","desc":"Report environmental concerns and apply for tree-cutting or land-clearing permits.","link":"#directory","arrow":"Learn More"},
-  {"icon":"💰","title":"Real Property Tax","desc":"Pay real property tax online or check your assessment and payment history.","link":"#directory","arrow":"Learn More"}
+  {"icon":"💰","title":"Real Property Tax","desc":"Check your real property assessment and payment history, or visit the Treasurer''s Office to pay.","link":"#directory","arrow":"Learn More"}
 ]'),
 
 ('lgu_faq', '[
@@ -92,7 +92,7 @@ INSERT INTO lgu_kv (key, value) VALUES
 ]'),
 
 ('lgu_announcements', '[
-  {"text":"📢 Business Permit Renewal period is ongoing until January 20 — visit BPLO or renew online.","active":true},
+  {"text":"📢 Business Permit Renewal period is ongoing until January 20 — visit BPLO for assistance.","active":true},
   {"text":"🏥 Free Medical & Dental Mission on September 5 at the Real Municipal Gymnasium.","active":true},
   {"text":"🌊 Coastal Clean-Up Drive volunteers needed — sign up at the Tourism Office.","active":true},
   {"text":"📄 Civil Registry now processing PSA-authenticated documents within 5–7 working days.","active":true}
