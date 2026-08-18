@@ -1230,6 +1230,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('programs', this)"><span class="icon">📈</span> Programs</button>
     <button class="nav-item" onclick="switchPanel('tourism', this)"><span class="icon">🏖️</span> Tourism</button>
     <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
+    <button class="nav-item" onclick="switchPanel('awards', this)"><span class="icon">🏆</span> Awards</button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1503,6 +1504,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <div class="card-body">
           <div class="form-group"><label>Content</label><textarea id="ap-gad-body" placeholder="Write GAD programs, news, and content here." style="min-height:180px;"></textarea></div>
           <button class="btn btn-primary" onclick="saveAboutPage('gad')">Save GAD Corner</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AWARDS & RECOGNITION -->
+    <div class="panel" id="panel-awards">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>🏆 Awards & Recognition</h3><p>Shown on the public site under About → Awards & Recognition. Sorted newest-first automatically by year.</p></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="addAward()">+ Add Award</button>
+            <button class="btn btn-gold" onclick="saveAwards()">💾 Save</button>
+          </div>
+        </div>
+        <div class="card-body" id="awards-editor-body">
+          <p style="color:var(--slate-l);font-size:0.85rem;">Loading awards…</p>
         </div>
       </div>
     </div>
@@ -2466,10 +2483,10 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','settings','users','audit'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','settings','users','audit'],
   editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
   compliance: ['dashboard','transparency','charter'],
-  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism'],
+  viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism','awards'],
 };
 const ROLE_LABELS = { super:'Super Admin', editor:'Editor (PIO)', compliance:'Compliance Officer', viewer:'Viewer' };
 const ROLE_CSS    = { super:'role-super', editor:'role-editor', compliance:'role-compliance', viewer:'role-viewer' };
@@ -3117,7 +3134,7 @@ async function loadAll() {
   await Promise.all([
     loadHeroSlides(), loadOfficialsAdmin(), loadAlert(),
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
-    loadAttractionsAdmin(), loadAboutPagesAdmin(),
+    loadAttractionsAdmin(), loadAwardsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
     loadFAQAdmin(), loadAdminUsers(), loadAuditTrail()
   ]);
@@ -3132,7 +3149,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -4889,6 +4906,97 @@ function handleAttractionPhotoUpload(event, idx) {
 async function saveAttractions() {
   const ok = await sharedSet('lgu_attractions', attractions);
   if (ok) showToast(`Attractions saved — ${attractions.length} card${attractions.length!==1?'s':''} ✓`);
+  else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
+//  AWARDS & RECOGNITION
+// ═══════════════════════════════════════════════
+let awards = [];
+
+async function loadAwardsAdmin() {
+  awards = await sharedGet('lgu_awards') || [];
+  renderAwardsEditor();
+}
+
+function renderAwardsEditor() {
+  const el = document.getElementById('awards-editor-body');
+  if (!awards.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No awards yet. Click + Add Award.</p>'; return; }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+    ${awards.map((a,i) => `
+      <div style="border:1.5px solid var(--border);border-radius:8px;padding:16px;background:var(--bg);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:0.72rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;">Award #${i+1}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteAward(${i})" title="Remove">🗑</button>
+        </div>
+        <div style="width:100%;height:110px;border-radius:6px;overflow:hidden;background:linear-gradient(135deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;margin-bottom:10px;cursor:pointer;position:relative;" onclick="document.getElementById('award-photo-input-${i}').click()">
+          ${a.photo ? `<img src="${a.photo}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:32px;">🏆</span>`}
+          <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.6);color:white;font-size:0.65rem;padding:3px 8px;border-radius:12px;">📷 ${a.photo?'Change':'Upload'}</div>
+        </div>
+        <input type="file" id="award-photo-input-${i}" accept="image/*" style="display:none" onchange="handleAwardPhotoUpload(event, ${i})">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Year</div>
+            <input type="text" value="${escHtml(a.year||'')}" placeholder="2026" maxlength="4" style="width:90px;border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:0.85rem;font-family:'Inter',sans-serif;outline:none;" oninput="awards[${i}].year=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Award Title</div>
+            <input type="text" value="${escHtml(a.title||'')}" placeholder="e.g. Seal of Good Local Governance" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.85rem;outline:none;font-family:'Inter',sans-serif;" oninput="awards[${i}].title=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Awarding Body</div>
+            <input type="text" value="${escHtml(a.awardingBody||'')}" placeholder="e.g. DILG Region IV-A" style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.85rem;outline:none;font-family:'Inter',sans-serif;" oninput="awards[${i}].awardingBody=this.value">
+          </div>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:var(--slate-l);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Description</div>
+            <textarea style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;outline:none;font-family:'Inter',sans-serif;min-height:60px;resize:vertical;" oninput="awards[${i}].description=this.value">${escHtml(a.description||'')}</textarea>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function addAward() { awards.push({ year: new Date().getFullYear().toString(), title:'', awardingBody:'', description:'', photo:'' }); renderAwardsEditor(); }
+function deleteAward(i) {
+  if(!confirm('Remove this award?'))return;
+  const removed = awards[i];
+  awards.splice(i,1); renderAwardsEditor(); showToast('Removed');
+  if (removed?.photo && removed.photo.includes('/lgu-images/')) {
+    try {
+      const path = removed.photo.split('/lgu-images/')[1];
+      if (path) _sb.storage.from('lgu-images').remove([decodeURIComponent(path)]);
+    } catch {}
+  }
+}
+function handleAwardPhotoUpload(event, idx) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!checkFileSize(file, 'image')) { event.target.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    openResizeModal(e.target.result, () => {
+      const btn = Array.from(document.querySelectorAll('.preset-btn')).find(b=>b.textContent.includes('Square Thumbnail'));
+      if (btn) btn.click();
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading photo…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'awards/');
+        awards[idx].photo = publicUrl;
+        renderAwardsEditor();
+        showToast(`Photo set — ${w}×${h}px ✓`);
+      } catch (err) {
+        console.error('[award photo upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+async function saveAwards() {
+  const ok = await sharedSet('lgu_awards', awards);
+  if (ok) showToast(`Awards saved — ${awards.length} entr${awards.length!==1?'ies':'y'} ✓`);
   else showToast('Save failed','error');
 }
 

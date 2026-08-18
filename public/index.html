@@ -1595,6 +1595,7 @@
         <a href="javascript:void(0)" onclick="openAboutPageModal('mission_vision')">🎯 Mission and Vision</a>
         <a href="javascript:void(0)" onclick="openAboutPageModal('mandates')">⚖️ Mandates</a>
         <a href="javascript:void(0)" onclick="openAboutPageModal('gad')">🤝 Gender and Development Corner</a>
+        <a href="javascript:void(0)" onclick="openAwardsModal()">🏆 Awards &amp; Recognition</a>
       </div>
     </li>
     <li class="nav-dropdown">
@@ -1670,6 +1671,7 @@
     <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mission_vision')">🎯 Mission and Vision</a>
     <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('mandates')">⚖️ Mandates</a>
     <a href="javascript:void(0)" onclick="closeMobileNav();openAboutPageModal('gad')">🤝 GAD Corner</a>
+    <a href="javascript:void(0)" onclick="closeMobileNav();openAwardsModal()">🏆 Awards &amp; Recognition</a>
   </div>
 
   <div class="drawer-item-row">
@@ -2616,7 +2618,7 @@
     'lgu_directory','lgu_documents','lgu_events','lgu_faq','lgu_gallery',
     'lgu_hero_slides','lgu_officials','lgu_programs','lgu_services','lgu_settings',
     'lgu_history','lgu_mission_vision','lgu_mandates','lgu_gad',
-    'lgu_attractions','lgu_tourism_itinerary','lgu_tourism_tips',
+    'lgu_attractions','lgu_tourism_itinerary','lgu_tourism_tips','lgu_awards',
   ];
   let _kvCache = null;
   async function prefetchAllContent() {
@@ -2793,6 +2795,40 @@
       `;
       document.head.appendChild(s);
     }
+  }
+
+  // ── AWARDS & RECOGNITION ────────────────────────────
+  async function openAwardsModal() {
+    const awards = (await safeGet('lgu_awards')) || [];
+    const sorted = [...awards].sort((a, b) => (parseInt(b.year)||0) - (parseInt(a.year)||0));
+    const overlay = document.createElement('div');
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;max-width:720px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:36px 40px;';
+
+    const listHtml = sorted.length ? sorted.map(a => `
+      <div style="display:flex;gap:16px;padding:18px 0;border-bottom:1px solid #EAE5DB;">
+        ${a.photo
+          ? `<img src="${esc(a.photo)}" alt="${esc(a.title||'')}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
+          : `<div style="width:64px;height:64px;border-radius:10px;flex-shrink:0;background:linear-gradient(145deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;font-size:26px;">🏆</div>`}
+        <div style="min-width:0;">
+          ${a.year ? `<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:2px 9px;border-radius:20px;background:rgba(201,162,39,0.15);color:#C9A227;">${esc(a.year)}</span>` : ''}
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.02rem;font-weight:700;color:#0F2419;margin:6px 0 3px;line-height:1.3;">${esc(a.title||'')}</h3>
+          ${a.awardingBody ? `<div style="font-size:0.78rem;color:#C9A227;font-weight:600;margin-bottom:4px;">${esc(a.awardingBody)}</div>` : ''}
+          ${a.description ? `<p style="font-size:0.85rem;color:#718096;line-height:1.6;margin:0;">${esc(a.description)}</p>` : ''}
+        </div>
+      </div>`).join('') : `<div style="background:#F5F0E8;border-radius:8px;padding:20px;font-size:0.9rem;color:#718096;line-height:1.6;">Awards and recognitions will be listed here as they are added.</div>`;
+
+    modal.innerHTML = `
+      <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(145deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:18px;">🏆</div>
+      <h1 style="font-family:'Playfair Display',serif;font-size:clamp(1.4rem,3vw,1.9rem);font-weight:900;color:#0F2419;line-height:1.2;margin-bottom:12px;">Awards &amp; Recognition</h1>
+      <p style="font-size:0.95rem;color:#718096;line-height:1.6;margin-bottom:8px;">Milestones and recognitions earned by the Municipality of Real.</p>
+      <div>${listHtml}</div>
+      <button onclick="this.closest('.lgu-modal-overlay').remove()" style="margin-top:24px;background:#1A3C2E;color:white;padding:11px 24px;border:none;border-radius:6px;font-family:Inter,sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">← Close</button>`;
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   // ── VIDEO / SOCIAL EMBED HELPERS ───────────────────
