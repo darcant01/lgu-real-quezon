@@ -1579,7 +1579,6 @@
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact" class="nav-cta">Contact</a></li>
     <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
-    <li><a href="javascript:void(0)" class="nav-admin-btn" onclick="enableEmergencyAlerts()" title="Get notified of emergency alerts on this device"><span class="js-alert-toggle-label">🔔 Alerts</span></a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
@@ -1647,7 +1646,6 @@
   <a href="#faq"           onclick="closeMobileNav()">❓ FAQ</a>
   <a href="#contact"       class="cta" onclick="closeMobileNav()">✉️ Contact Us</a>
   <a href="javascript:void(0)" id="install-app-drawer-link" onclick="closeMobileNav();installApp()" style="display:none;">📲 Install This App</a>
-  <a href="javascript:void(0)" onclick="closeMobileNav();enableEmergencyAlerts()"><span class="js-alert-toggle-label">🔔 Get Alerts</span></a>
   <div class="drawer-section" style="margin-top:8px;">Staff</div>
   <a href="#" onclick="closeMobileNav(); openAdminModal(event)" style="color:rgba(255,255,255,0.45);font-size:0.82rem;">🔐 Admin Login</a>
 </div>
@@ -3772,10 +3770,43 @@
   }
 
   function _updateAlertBtnUI() {
-    const enabled = Notification && Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
-    document.querySelectorAll('.js-alert-toggle-label').forEach(el => {
-      el.textContent = enabled ? '🔔 On' : '🔔 Alerts';
-    });
+    const supported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+    if (!supported) { hideAlertEnableFloatButton(); return; }
+    const enabled = Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
+    showAlertEnableFloatButton(enabled);
+  }
+  // Persistent floating bell — lets any visitor opt in to Emergency Alert
+  // push notifications from anywhere on the site (not tucked in the nav).
+  // Sits bottom-left so it never collides with the red minimized-alert
+  // badge (showFloatingAlertIcon), which lives bottom-right.
+  function showAlertEnableFloatButton(enabled) {
+    let btn = document.getElementById('alert-enable-float-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'alert-enable-float-btn';
+      btn.type = 'button';
+      btn.onclick = enableEmergencyAlerts;
+      btn.style.cssText = 'position:fixed;bottom:22px;left:22px;height:44px;padding:0 16px 0 14px;border-radius:22px;border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;gap:7px;font-family:"Inter",sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;z-index:585;box-shadow:0 10px 26px rgba(0,0,0,0.28);transition:background 0.2s,border-color 0.2s;';
+      document.body.appendChild(btn);
+    }
+    if (enabled) {
+      btn.style.background = 'var(--forest-d)';
+      btn.style.color = 'var(--gold)';
+      btn.style.borderColor = 'rgba(201,162,39,0.5)';
+      btn.title = 'Emergency alerts are ON — tap to turn off';
+      btn.innerHTML = '🔔 Alerts On';
+    } else {
+      btn.style.background = 'var(--forest-d)';
+      btn.style.color = 'white';
+      btn.style.borderColor = 'rgba(255,255,255,0.25)';
+      btn.title = 'Get notified of emergency alerts on this device';
+      btn.innerHTML = '🔔 Get Alerts';
+    }
+    btn.style.display = 'flex';
+  }
+  function hideAlertEnableFloatButton() {
+    const btn = document.getElementById('alert-enable-float-btn');
+    if (btn) btn.remove();
   }
 
   async function enableEmergencyAlerts() {
