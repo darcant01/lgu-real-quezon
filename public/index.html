@@ -210,6 +210,22 @@
   .nav-cta { background: var(--gold); color: var(--forest-d) !important; padding: 8px 18px; border-radius: 4px; font-weight: 600 !important; }
   .nav-cta:hover { background: var(--gold-l) !important; }
 
+  /* Floating Contact button — bottom-right, positioned above where the
+     alert badges (bottom:22px) sit, so it stacks cleanly above them
+     rather than overlapping regardless of which alert buttons show. */
+  .floating-contact-btn {
+    position: fixed; bottom: 96px; right: 22px; z-index: 585;
+    height: 46px; padding: 0 18px 0 15px; border-radius: 23px;
+    background: var(--gold); color: var(--forest-d);
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; font-family: 'Inter', sans-serif;
+    font-size: 0.85rem; font-weight: 700;
+    box-shadow: 0 10px 26px rgba(201,162,39,0.45), 0 2px 8px rgba(0,0,0,0.15);
+    transition: background 0.2s, transform 0.2s;
+  }
+  .floating-contact-btn:hover { background: var(--gold-l); transform: translateY(-2px); }
+  .floating-contact-label { white-space: nowrap; }
+
   /* Admin login button — subtle, staff-only feel */
   .nav-admin-btn {
     display: inline-flex !important;
@@ -1577,7 +1593,7 @@
       </div>
     </li>
     <li><a href="#faq">FAQ</a></li>
-    <li><a href="#contact" class="nav-cta">Contact</a></li>
+    
     <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
@@ -1585,6 +1601,14 @@
     <span></span><span></span><span></span>
   </button>
 </nav>
+
+<!-- FLOATING CONTACT BUTTON — positioned above the alert-badge zone
+     (bottom:22px is reserved for the alert-enable / minimized-alert
+     buttons) so nothing overlaps regardless of which are showing. -->
+<a href="#contact" class="floating-contact-btn" title="Contact Us" aria-label="Contact Us">
+  <span style="font-size:20px;">✉️</span>
+  <span class="floating-contact-label">Contact</span>
+</a>
 
 <!-- MOBILE NAV DRAWER -->
 <div class="mobile-nav-drawer" id="mobile-nav-drawer">
