@@ -2862,6 +2862,7 @@
   function openArticleModal_pub(idx) {
     const a = window._pubArticles[idx];
     if (!a || (!a.bodyHtml && !a.youtube && !a.facebook)) return;
+    trackContentView('article_view', a.id || a.title);
     const overlay = document.createElement('div');
     overlay.className = 'lgu-modal-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
@@ -4172,9 +4173,12 @@
   // persistent visitor ID — just a device type and referring site,
   // stored in your own Supabase project. Honors the Do Not Track
   // browser signal.
+  function _dntEnabled() {
+    return navigator.doNotTrack === '1' || window.doNotTrack === '1';
+  }
   function trackPageview() {
     try {
-      if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+      if (_dntEnabled()) return;
       const isMobile = window.matchMedia('(max-width: 900px)').matches;
       let referrer = 'direct';
       if (document.referrer) {
@@ -4183,6 +4187,21 @@
       _sb.from('lgu_analytics_events').insert({
         device: isMobile ? 'mobile' : 'desktop',
         referrer,
+        event_type: 'pageview',
+      }).then(() => {}).catch(() => {});
+    } catch {}
+  }
+  // Tracks a specific piece of content being opened (currently: articles).
+  // 'label' identifies WHICH one — uses the article's stable id so a
+  // later headline edit doesn't split its view count into two entries.
+  function trackContentView(eventType, label) {
+    try {
+      if (_dntEnabled() || !label) return;
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      _sb.from('lgu_analytics_events').insert({
+        device: isMobile ? 'mobile' : 'desktop',
+        event_type: eventType,
+        label: String(label),
       }).then(() => {}).catch(() => {});
     } catch {}
   }

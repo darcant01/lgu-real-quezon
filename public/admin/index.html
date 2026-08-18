@@ -1324,6 +1324,17 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
       </div>
 
+      <!-- ARTICLE VIEWS -->
+      <div class="card">
+        <div class="card-header">
+          <div><h3>📰 Most-Read Articles</h3><p>Top 10 articles by how many times they've been opened, last 90 days.</p></div>
+          <button class="btn btn-ghost" onclick="loadArticleViewStats()">↻ Refresh</button>
+        </div>
+        <div class="card-body" id="article-views-body">
+          <div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div><h3>Welcome back 👋</h3><p>Manage your site content from the sidebar.</p></div>
@@ -5460,6 +5471,7 @@ function renderDash() {
   runSiteSpeedTest();
   loadAnalytics();
   loadSubscriberStats();
+  loadArticleViewStats();
   const el = document.getElementById('dash-recent-articles');
   const recent = articles.filter(a => a.published).slice(0, 3);
   if (!recent.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No published articles yet.</p>'; return; }
@@ -5679,6 +5691,68 @@ async function loadSubscriberStats() {
       }).join('')}
     </div>
     <div style="margin-top:16px;font-size:0.7rem;color:var(--slate-l);">Subscriptions from the last 90 days shown. Note: this counts devices/browsers, not unique people — someone with 2 devices enabled counts as 2.</div>`;
+}
+
+// ── MOST-READ ARTICLES ─────────────────────────────
+// lgu_analytics_events already has a public SELECT policy (unlike
+// lgu_push_subscriptions), since this data has no PII and no abuse
+// risk — safe to query directly with the same anon key the admin
+// panel and public site both use.
+async function loadArticleViewStats() {
+  const body = document.getElementById('article-views-body');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">Loading…</div>';
+
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
+  const { data, error } = await _sb
+    .from('lgu_analytics_events')
+    .select('label')
+    .eq('event_type', 'article_view')
+    .gte('created_at', since.toISOString())
+    .limit(20000);
+
+  if (error) {
+    body.innerHTML = `<div style="padding:16px;background:#FFF5F5;border-left:3px solid var(--red);border-radius:4px;font-size:0.82rem;color:var(--slate);">
+      Not set up yet — run <code>supabase/migrations/011_analytics_article_views.sql</code> in the Supabase SQL Editor, then refresh.
+    </div>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--slate-l);font-size:0.85rem;">No article views recorded yet — this fills in as visitors open articles on the public site.</div>';
+    return;
+  }
+
+  const counts = {};
+  data.forEach(row => { if (row.label) counts[row.label] = (counts[row.label] || 0) + 1; });
+
+  const ranked = Object.entries(counts)
+    .map(([label, count]) => {
+      const match = (articles || []).find(a => String(a.id) === String(label) || a.title === label);
+      return { count, title: match ? match.title : `(no longer published)`, exists: !!match };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const maxCount = ranked[0] ? ranked[0].count : 1;
+
+  body.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+    ${ranked.map((r, i) => `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:0.78rem;font-weight:700;color:var(--slate-l);width:18px;flex-shrink:0;">${i+1}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.85rem;font-weight:600;color:${r.exists?'var(--slate)':'var(--slate-l)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${r.exists?'':'font-style:italic;'}">${escHtml(r.title)}</div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px;">
+            <div style="height:100%;width:${Math.max(4, Math.round(r.count/maxCount*100))}%;background:var(--gold);"></div>
+          </div>
+        </div>
+        <span style="font-size:0.9rem;font-weight:700;color:var(--forest);flex-shrink:0;">${r.count}</span>
+      </div>`).join('')}
+    </div>
+    <div style="margin-top:16px;font-size:0.7rem;color:var(--slate-l);">Based on ${data.length.toLocaleString()} article open${data.length!==1?'s':''} in the last 90 days.</div>`;
 }
 
 // ── SITE SPEED TEST ───────────────────────────────
