@@ -625,6 +625,8 @@
     .programs { padding: 60px 5%; }
     .programs-grid { grid-template-columns: 1fr 1fr; }
     .events { padding: 60px 5%; }
+    .events-calendar { padding: 16px; }
+    .cal-day { font-size: 0.78rem; }
     .events-grid { grid-template-columns: 1fr; }
     .tourism { padding: 60px 5%; }
     .attractions-grid { grid-template-columns: 1fr 1fr; }
@@ -772,6 +774,53 @@
   .event-meta span { font-size: 0.7rem; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 4px; }
   .event-type-badge { display: inline-block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; background: rgba(201,162,39,0.2); color: var(--gold); margin-bottom: 6px; }
   .events-empty { text-align: center; padding: 40px; color: rgba(255,255,255,0.35); font-size: 0.88rem; }
+
+  /* ── EVENTS: List/Calendar toggle ── */
+  .events-view-toggle { display: flex; gap: 8px; justify-content: center; margin: -12px 0 32px; }
+  .events-view-btn {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7); padding: 8px 20px; border-radius: 20px;
+    font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .events-view-btn:hover { border-color: rgba(201,162,39,0.4); color: white; }
+  .events-view-btn.active { background: var(--gold); border-color: var(--gold); color: var(--forest-d); }
+
+  /* ── EVENTS: Calendar view ── */
+  .events-calendar { max-width: 620px; margin: 0 auto; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 24px; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .cal-header h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: white; }
+  .cal-nav-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06); color: white; font-size: 1.1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s;
+  }
+  .cal-nav-btn:hover { background: rgba(201,162,39,0.15); border-color: var(--gold); }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 8px; }
+  .cal-weekdays span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; color: rgba(255,255,255,0.4); text-transform: uppercase; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; color: rgba(255,255,255,0.75); border-radius: 8px; position: relative;
+    transition: background 0.15s;
+  }
+  .cal-day.other-month { color: rgba(255,255,255,0.15); }
+  .cal-day.today { border: 1.5px solid var(--gold); font-weight: 700; color: var(--gold); }
+  .cal-day.has-event { cursor: pointer; background: rgba(201,162,39,0.1); font-weight: 600; color: white; }
+  .cal-day.has-event:hover { background: rgba(201,162,39,0.25); }
+  .cal-day.has-event.selected { background: var(--gold); color: var(--forest-d); }
+  .cal-dot { position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
+  .cal-day.has-event.selected .cal-dot { background: var(--forest-d); }
+  .cal-day-events { margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; }
+  .cal-day-events-label { font-size: 0.78rem; font-weight: 700; color: var(--gold); letter-spacing: 0.03em; margin-bottom: 10px; }
+  .cal-day-event-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,0.05);
+    cursor: pointer; margin-bottom: 6px; transition: background 0.15s;
+  }
+  .cal-day-event-item:hover { background: rgba(201,162,39,0.15); }
+  .cal-day-event-item strong { color: white; font-size: 0.85rem; font-weight: 600; }
+  .cal-day-event-item span { color: rgba(255,255,255,0.55); font-size: 0.75rem; white-space: nowrap; }
 
   /* ── TOURISM SECTION ── */
   .tourism { padding: 90px 8%; background: var(--white); }
@@ -1948,8 +1997,27 @@
   <div class="section-label" style="color:var(--gold);">Calendar</div>
   <h2 class="section-title">Upcoming Events</h2>
   <p class="section-sub">Stay informed about municipal activities, celebrations, and public engagements.</p>
+
+  <div class="events-view-toggle">
+    <button type="button" class="events-view-btn active" id="events-view-list-btn" onclick="setEventsView('list')">📋 List</button>
+    <button type="button" class="events-view-btn" id="events-view-cal-btn" onclick="setEventsView('calendar')">🗓️ Calendar</button>
+  </div>
+
   <div class="events-grid" id="events-grid">
     <div class="events-empty">No upcoming events posted yet.</div>
+  </div>
+
+  <div class="events-calendar" id="events-calendar" style="display:none;">
+    <div class="cal-header">
+      <button type="button" class="cal-nav-btn" onclick="changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
+      <h3 id="cal-month-label"></h3>
+      <button type="button" class="cal-nav-btn" onclick="changeCalendarMonth(1)" aria-label="Next month">›</button>
+    </div>
+    <div class="cal-weekdays">
+      <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-day-events" id="cal-day-events"></div>
   </div>
 </section>
 
@@ -3411,6 +3479,7 @@
       .sort((a,b) => new Date(a.date) - new Date(b.date));
     if (!upcoming.length) return;
     window._pubEvents = upcoming;
+    window._allEventsForCalendar = events.filter(e => e.active && e.date);
     renderEventsGrid();
     // Re-check every 30s so a LIVE NOW badge appears/disappears without a page refresh
     if (window._eventsLiveTimer) clearInterval(window._eventsLiveTimer);
@@ -3453,7 +3522,13 @@
   // Event video/FB modal on public site
   function openEventModal_pub(idx) {
     const e = window._pubEvents[idx];
-    if (!e || (!e.youtube && !e.facebook)) return;
+    openEventDetailModal(e);
+  }
+  // Shared modal builder — works for any event object, from the list
+  // view (by index) or the calendar view (by direct reference). Shows
+  // full details regardless of whether the event has a video attached.
+  function openEventDetailModal(e) {
+    if (!e) return;
     const ytEmbed = getYouTubeEmbedUrl(e.youtube);
     const fbEmbed = getFacebookEmbedUrl(e.facebook);
     const live = isEventLiveNow(e);
@@ -3462,7 +3537,6 @@
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
     const modal = document.createElement('div');
     modal.style.cssText = 'background:white;border-radius:12px;max-width:700px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.3);overflow:hidden;padding:32px 36px;';
-    const d = new Date(e.date + 'T00:00:00');
     modal.innerHTML = `
       ${live ? `<div class="live-now-badge" style="position:static;display:inline-flex;margin-bottom:12px;">🔴 LIVE NOW</div>` : ''}
       ${e.type ? `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(201,162,39,0.15);color:#C9A227;">${esc(e.type)}</span>` : ''}
@@ -3483,6 +3557,75 @@
     overlay.appendChild(modal);
     overlay.addEventListener('click', e2 => { if (e2.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
+  }
+
+  // ── EVENTS: List / Calendar toggle ──────────────────
+  function setEventsView(view) {
+    document.getElementById('events-grid').style.display     = view === 'list' ? 'grid' : 'none';
+    document.getElementById('events-calendar').style.display = view === 'calendar' ? 'block' : 'none';
+    document.getElementById('events-view-list-btn').classList.toggle('active', view === 'list');
+    document.getElementById('events-view-cal-btn').classList.toggle('active', view === 'calendar');
+    if (view === 'calendar') renderEventsCalendar();
+  }
+  let _calDate = new Date(); _calDate.setDate(1);
+  function changeCalendarMonth(delta) {
+    _calDate.setMonth(_calDate.getMonth() + delta);
+    renderEventsCalendar();
+  }
+  function renderEventsCalendar() {
+    const grid  = document.getElementById('cal-grid');
+    const label = document.getElementById('cal-month-label');
+    if (!grid || !label) return;
+    const year  = _calDate.getFullYear();
+    const month = _calDate.getMonth();
+    label.textContent = _calDate.toLocaleString('en-PH', { month: 'long', year: 'numeric' });
+
+    const eventsByDate = {};
+    (window._allEventsForCalendar || []).forEach(e => {
+      (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e);
+    });
+
+    const firstDayOffset  = new Date(year, month, 1).getDay();
+    const daysInMonth     = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const cells = [];
+    for (let i = firstDayOffset - 1; i >= 0; i--) cells.push({ day: daysInPrevMonth - i, otherMonth: true });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      cells.push({ day: d, dateStr, hasEvents: !!eventsByDate[dateStr], isToday: dateStr === todayStr });
+    }
+    const remainder = cells.length % 7;
+    if (remainder) for (let d = 1; d <= 7 - remainder; d++) cells.push({ day: d, otherMonth: true });
+
+    grid.innerHTML = cells.map(c => {
+      if (c.otherMonth) return `<div class="cal-day other-month">${c.day}</div>`;
+      const classes = ['cal-day'];
+      if (c.isToday) classes.push('today');
+      if (c.hasEvents) classes.push('has-event');
+      return `<div class="${classes.join(' ')}" ${c.hasEvents ? `onclick="showCalendarDayEvents('${c.dateStr}', this)"` : ''}>${c.day}${c.hasEvents ? '<span class="cal-dot"></span>' : ''}</div>`;
+    }).join('');
+
+    document.getElementById('cal-day-events').innerHTML = '';
+  }
+  function showCalendarDayEvents(dateStr, dayEl) {
+    document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
+    if (dayEl) dayEl.classList.add('selected');
+
+    const events = (window._allEventsForCalendar || []).filter(e => e.date === dateStr);
+    window._calDayEvents = events;
+    const panel = document.getElementById('cal-day-events');
+    if (!events.length) { panel.innerHTML = ''; return; }
+    const d = new Date(dateStr + 'T00:00:00');
+    const label = d.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' });
+    panel.innerHTML = `
+      <div class="cal-day-events-label">📅 ${esc(label)}</div>
+      ${events.map((e,i) => `
+        <div class="cal-day-event-item" onclick="openEventDetailModal(window._calDayEvents[${i}])">
+          <strong>${esc(e.title)}</strong>
+          ${e.time ? `<span>🕐 ${esc(e.time)}</span>` : ''}
+        </div>`).join('')}`;
   }
 
   // ── GALLERY ───────────────────────────────────────
