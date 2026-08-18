@@ -3211,9 +3211,9 @@
   function applyAlertData(alert) {
     if (!alert || !alert.active) {
       hideAlertModal();
-      hideFloatingAlertIcon();
       stopAlertSound();
       window._currentAlert = null;
+      renderAlertBadge();
       return;
     }
     // Include publishedAt so re-publishing the SAME text still counts as
@@ -3222,7 +3222,7 @@
     // already dismissed an earlier instance of this alert too.
     const fingerprint = (alert.title || '') + '|' + (alert.body || '') + '|' + (alert.publishedAt || '');
     if ((alert.title||'').trim() === '' && (alert.body||'').trim() === '') {
-      hideAlertModal(); hideFloatingAlertIcon(); return; // nothing to show
+      hideAlertModal(); window._currentAlert = null; renderAlertBadge(); return; // nothing to show
     }
 
     window._currentAlert = alert;
@@ -3233,13 +3233,13 @@
       // Already seen this exact publish — stay minimized as the floating
       // badge instead of popping the full alert up again unprompted.
       hideAlertModal();
-      showFloatingAlertIcon();
+      renderAlertBadge();
       return;
     }
 
-    hideFloatingAlertIcon();
     showAlertModal(alert, fingerprint);
     playAlertSound();
+    renderAlertBadge();
   }
   function showAlertModal(alert, fingerprint) {
     let overlay = document.getElementById('alert-modal-overlay');
@@ -3272,33 +3272,77 @@
     const overlay = document.getElementById('alert-modal-overlay');
     if (overlay) overlay.remove();
   }
-  // Floating badge shown after an alert is minimized — stays on screen
-  // (any page/scroll position) for as long as the alert remains active,
-  // so it's never fully lost, just tucked out of the way until wanted.
-  function showFloatingAlertIcon() {
+  // ── UNIFIED FLOATING ALERT BADGE ────────────────────
+  // One badge, two roles, so the "Get Alerts" subscribe button lives
+  // inside the same badge as the emergency alert indicator instead of
+  // being a separate floating element:
+  //   - Urgent mode: an active alert is minimized — red, pulsing 🚨,
+  //     tapping reopens the full alert (highest priority; wins whenever
+  //     there's something to show)
+  //   - Subscribe mode: no active alert right now — gold/forest 🔔
+  //     reflecting push-subscription status, tapping toggles it
+  // Hidden entirely while the full alert modal is open (nothing to add).
+  function ensureAlertBadgeEl() {
     let btn = document.getElementById('alert-float-btn');
-    if (btn) { btn.style.display = 'flex'; return; }
-    btn = document.createElement('button');
-    btn.id = 'alert-float-btn';
-    btn.type = 'button';
-    btn.title = 'Emergency Alert — tap to view';
-    btn.setAttribute('aria-label', 'View emergency alert');
-    btn.onclick = reopenAlertModal;
-    btn.style.cssText = 'position:fixed;bottom:98px;right:22px;width:58px;height:58px;border-radius:50%;background:#C0392B;border:3px solid white;box-shadow:0 10px 28px rgba(192,57,43,0.55);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;z-index:590;animation:blink-emergency 1.6s steps(1,end) infinite;padding:0;';
-    btn.textContent = '🚨';
-    document.body.appendChild(btn);
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'alert-float-btn';
+      btn.type = 'button';
+      btn.style.cssText = 'position:fixed;bottom:98px;right:22px;width:58px;height:58px;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;z-index:590;padding:0;transition:background 0.2s;';
+      document.body.appendChild(btn);
+    }
+    return btn;
   }
-  function hideFloatingAlertIcon() {
+  function renderAlertBadge() {
+    const overlayOpen = !!document.getElementById('alert-modal-overlay');
+    if (overlayOpen) { hideAlertBadgeEl(); return; }
+
+    if (window._currentAlert) {
+      const btn = ensureAlertBadgeEl();
+      btn.style.display = 'flex';
+      btn.style.background = '#C0392B';
+      btn.style.boxShadow = '0 10px 28px rgba(192,57,43,0.55)';
+      btn.style.animation = 'blink-emergency 1.6s steps(1,end) infinite';
+      btn.title = 'Emergency Alert — tap to view';
+      btn.setAttribute('aria-label', 'View emergency alert');
+      btn.onclick = reopenAlertModal;
+      btn.textContent = '🚨';
+      return;
+    }
+
+    const supported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+    if (!supported) { hideAlertBadgeEl(); return; }
+    const enabled = Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
+    const btn = ensureAlertBadgeEl();
+    btn.style.display = 'flex';
+    btn.style.animation = 'none';
+    btn.onclick = enableEmergencyAlerts;
+    if (enabled) {
+      btn.style.background = 'var(--forest-d)';
+      btn.style.color = 'var(--gold)';
+      btn.style.boxShadow = '0 10px 26px rgba(0,0,0,0.28)';
+      btn.title = 'Emergency alerts are ON — tap to turn off';
+      btn.setAttribute('aria-label', 'Emergency alerts are on — tap to turn off');
+    } else {
+      btn.style.background = 'var(--gold)';
+      btn.style.color = 'var(--forest-d)';
+      btn.style.boxShadow = '0 10px 26px rgba(201,162,39,0.45)';
+      btn.title = 'Get notified of emergency alerts on this device';
+      btn.setAttribute('aria-label', 'Get notified of emergency alerts on this device');
+    }
+    btn.textContent = '🔔';
+  }
+  function hideAlertBadgeEl() {
     const btn = document.getElementById('alert-float-btn');
     if (btn) btn.remove();
   }
-  // Tapping the floating badge re-opens the full alert to read again —
+  // Tapping the urgent badge re-opens the full alert to read again —
   // does NOT replay the sound, since the visitor already heard/saw it
   // and is just choosing to revisit the details.
   function reopenAlertModal() {
     if (!window._currentAlert) return;
-    hideFloatingAlertIcon();
     showAlertModal(window._currentAlert, window._currentAlertFingerprint);
+    renderAlertBadge();
   }
   // Live updates: as soon as an admin activates/changes/deactivates the
   // Emergency Alert, every visitor currently on the site sees it (and
@@ -3774,7 +3818,7 @@
     if (fingerprint) localStorage.setItem('lgu_dismissed_alert', fingerprint);
     hideAlertModal();
     stopAlertSound();
-    if (window._currentAlert) showFloatingAlertIcon(); // minimize, don't fully lose it
+    renderAlertBadge(); // minimize into the badge, don't fully lose it
   }
   // A push arrived while a tab was open — the service worker already
   // showed the system notification; also play our custom sound here,
@@ -3795,43 +3839,7 @@
   }
 
   function _updateAlertBtnUI() {
-    const supported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
-    if (!supported) { hideAlertEnableFloatButton(); return; }
-    const enabled = Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
-    showAlertEnableFloatButton(enabled);
-  }
-  // Persistent floating bell — lets any visitor opt in to Emergency Alert
-  // push notifications from anywhere on the site (not tucked in the nav).
-  // Sits bottom-left so it never collides with the red minimized-alert
-  // badge (showFloatingAlertIcon), which lives bottom-right.
-  function showAlertEnableFloatButton(enabled) {
-    let btn = document.getElementById('alert-enable-float-btn');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.id = 'alert-enable-float-btn';
-      btn.type = 'button';
-      btn.onclick = enableEmergencyAlerts;
-      btn.style.cssText = 'position:fixed;bottom:22px;left:22px;height:44px;padding:0 16px 0 14px;border-radius:22px;border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;gap:7px;font-family:"Inter",sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;z-index:585;box-shadow:0 10px 26px rgba(0,0,0,0.28);transition:background 0.2s,border-color 0.2s;';
-      document.body.appendChild(btn);
-    }
-    if (enabled) {
-      btn.style.background = 'var(--forest-d)';
-      btn.style.color = 'var(--gold)';
-      btn.style.borderColor = 'rgba(201,162,39,0.5)';
-      btn.title = 'Emergency alerts are ON — tap to turn off';
-      btn.innerHTML = '🔔 Alerts On';
-    } else {
-      btn.style.background = 'var(--forest-d)';
-      btn.style.color = 'white';
-      btn.style.borderColor = 'rgba(255,255,255,0.25)';
-      btn.title = 'Get notified of emergency alerts on this device';
-      btn.innerHTML = '🔔 Get Alerts';
-    }
-    btn.style.display = 'flex';
-  }
-  function hideAlertEnableFloatButton() {
-    const btn = document.getElementById('alert-enable-float-btn');
-    if (btn) btn.remove();
+    renderAlertBadge();
   }
 
   async function enableEmergencyAlerts() {
