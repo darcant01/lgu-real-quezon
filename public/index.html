@@ -4310,6 +4310,13 @@
       return;
     }
 
+    _setAlertBadgeLoading(false);
+    if (!confirm('Enable emergency alert notifications on this device? You will be notified whenever the municipality posts an emergency alert.')) {
+      _updateAlertBtnUI();
+      return;
+    }
+    _setAlertBadgeLoading(true);
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') { _updateAlertBtnUI(); return; }
     try {
