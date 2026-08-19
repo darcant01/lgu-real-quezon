@@ -1,6 +1,6 @@
 // POST /api/send-contact-reply
-// Sends a real reply email (via Resend) to the person who submitted a
-// Contact form message, triggered from inside the admin panel — no
+// Sends a real reply email (via Gmail SMTP) to the person who submitted
+// a Contact form message, triggered from inside the admin panel — no
 // need to leave the admin panel or use a personal email client.
 //
 // Security: requires the admin's own Supabase Auth access token
@@ -11,11 +11,12 @@
 // actually grants an authenticated admin — never more. Someone without
 // a valid, current admin session gets rejected outright.
 //
-// Requires RESEND_API_KEY in the Vercel project (same one used by
-// notify-contact-message.js). SUPABASE_URL should already be set from
-// earlier setup.
+// Requires GMAIL_USER and GMAIL_APP_PASSWORD in the Vercel project
+// (same ones used by notify-contact-message.js — see api/_lib/mailer.js
+// for details). SUPABASE_URL should already be set from earlier setup.
 
 const { createClient } = require('@supabase/supabase-js');
+const { sendMail } = require('./_lib/mailer');
 
 // Public anon key — safe to embed, it's the same one used client-side
 // throughout this app. What makes this request privileged is the
@@ -33,8 +34,8 @@ module.exports = async (req, res) => {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
-  if (!supabaseUrl || !process.env.RESEND_API_KEY) {
-    res.status(500).json({ error: 'Server not configured — missing SUPABASE_URL or RESEND_API_KEY' });
+  if (!supabaseUrl || !process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    res.status(500).json({ error: 'Server not configured — missing SUPABASE_URL, GMAIL_USER, or GMAIL_APP_PASSWORD' });
     return;
   }
 
@@ -90,25 +91,14 @@ module.exports = async (req, res) => {
     </div>`;
 
   try {
-    const resendResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Municipality of Real <onboarding@resend.dev>',
-        to: [msg.email],
-        subject: `Re: ${msg.subject || 'Your inquiry to the Municipality of Real'}`,
-        html,
-      }),
+    await sendMail({
+      to: msg.email,
+      subject: `Re: ${msg.subject || 'Your inquiry to the Municipality of Real'}`,
+      html,
     });
-    const result = await resendResp.json();
-    if (!resendResp.ok) {
-      console.error('[send-contact-reply] Resend error', result);
-      res.status(502).json({ error: result.message || 'Failed to send email' });
-      return;
-    }
   } catch (err) {
     console.error('[send-contact-reply]', err);
-    res.status(502).json({ error: 'Network error sending email' });
+    res.status(502).json({ error: err.message || 'Failed to send email' });
     return;
   }
 

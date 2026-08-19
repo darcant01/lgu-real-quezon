@@ -14,16 +14,18 @@
 // the token is generated client-side and never needs to be read back,
 // only matched against server-side.
 //
-// Requires these environment variables in the Vercel project (Settings
-// → Environment Variables) — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-// already exist from the push-notification setup; only RESEND_API_KEY
-// is new:
-//   RESEND_API_KEY            — from resend.com (free tier is plenty
-//                                for a small LGU's contact form volume)
+// Sends via Gmail SMTP (see api/_lib/mailer.js). Requires these
+// environment variables in the Vercel project (Settings → Environment
+// Variables) — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY already
+// exist from the push-notification setup:
+//   GMAIL_USER            — the Gmail (or Google Workspace) address to send from
+//   GMAIL_APP_PASSWORD    — a 16-character Gmail App Password, not the real password
+//   GMAIL_FROM_NAME        — optional display name, defaults to "Municipality of Real"
 //   SUPABASE_URL               — same Supabase project URL used elsewhere
 //   SUPABASE_SERVICE_ROLE_KEY  — same service role key used by send-alert-push
 
 const { createClient } = require('@supabase/supabase-js');
+const { sendMail } = require('./_lib/mailer');
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -35,7 +37,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const requiredEnv = ['RESEND_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+  const requiredEnv = ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
   const missing = requiredEnv.filter(k => !process.env[k]);
   if (missing.length) {
     // Fail quietly from the client's perspective — the contact message
@@ -93,29 +95,15 @@ module.exports = async (req, res) => {
     </div>`;
 
   try {
-    const resendResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'LGU Real Website <onboarding@resend.dev>',
-        to: [toEmail],
-        reply_to: msg.email || undefined,
-        subject: `New Contact Form Message — ${name}`,
-        html,
-      }),
+    await sendMail({
+      to: toEmail,
+      replyTo: msg.email || undefined,
+      subject: `New Contact Form Message — ${name}`,
+      html,
     });
-    const result = await resendResp.json();
-    if (!resendResp.ok) {
-      console.error('[notify-contact-message] Resend error', result);
-      res.status(200).json({ sent: false, reason: result.message || 'Resend API error' });
-      return;
-    }
     res.status(200).json({ sent: true });
   } catch (err) {
     console.error('[notify-contact-message]', err);
-    res.status(200).json({ sent: false, reason: 'Network error sending email' });
+    res.status(200).json({ sent: false, reason: err.message || 'Failed to send email' });
   }
 };
