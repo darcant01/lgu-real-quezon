@@ -2787,13 +2787,33 @@
       try { history.pushState(null, '', location.pathname + location.search); } catch {}
     }
   }
+  // Slugifies a title into a URL-safe form for the shareable /news/
+  // links — doesn't need to be perfectly unique on its own, since the
+  // article's numeric id gets appended and is what's actually used to
+  // look the article up server-side.
+  function slugifyTitle(title) {
+    return String(title || 'article')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'article';
+  }
+  function articleShareUrl(a) {
+    const id = a.id || '';
+    return `${location.origin}/news/${slugifyTitle(a.title)}-${id}`;
+  }
   function copyArticleLink(btn) {
-    navigator.clipboard.writeText(location.href).then(() => {
+    // Pull the currently-open article back out of the URL hash — simplest
+    // reliable source here without threading extra data through the DOM.
+    const hashId = location.hash.startsWith('#article=') ? decodeURIComponent(location.hash.slice(9)) : '';
+    const a = (window._pubArticles || []).find(x => String(x.id || x.title) === hashId);
+    const shareUrl = a ? articleShareUrl(a) : location.href;
+    navigator.clipboard.writeText(shareUrl).then(() => {
       const original = btn.textContent;
       btn.textContent = '✓ Link Copied';
       setTimeout(() => { btn.textContent = original; }, 1800);
     }).catch(() => {
-      prompt('Copy this link:', location.href);
+      prompt('Copy this link:', shareUrl);
     });
   }
   // Browser back/forward button support — closes the article modal if
