@@ -456,6 +456,13 @@
   .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 40px; padding-bottom: 44px; border-bottom: 1px solid rgba(255,255,255,0.08); }
   .footer-brand p { font-size: 0.82rem; line-height: 1.7; margin-top: 16px; max-width: 280px; }
   .footer-social { display: flex; gap: 10px; margin-top: 20px; }
+  .messenger-cta {
+    display: inline-flex; align-items: center; gap: 10px; margin-top: 28px;
+    background: #0084FF; color: white; padding: 13px 24px; border-radius: 8px;
+    text-decoration: none; font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700;
+    box-shadow: 0 8px 20px rgba(0,132,255,0.3); transition: background 0.2s, transform 0.2s;
+  }
+  .messenger-cta:hover { background: #006FDB; transform: translateY(-2px); }
   .footer-social a {
     width: 36px; height: 36px; border-radius: 50%;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
@@ -2189,6 +2196,7 @@
       <div class="contact-row"><div class="contact-icon">✉️</div><div><h4>Email</h4><p>info@realquezon.gov.ph<br>civilregistry@realquezon.gov.ph</p></div></div>
       <div class="contact-row"><div class="contact-icon">🕐</div><div><h4>Office Hours</h4><p>Monday – Friday: 8:00 AM – 5:00 PM<br>Closed on Saturdays, Sundays & Holidays</p></div></div>
     </div>
+    <div id="messenger-cta-wrap"></div>
   </div>
   <div>
     <div class="section-label" style="color:#C9A227;">Send a Message</div>
@@ -2628,6 +2636,11 @@
     btn.disabled = true;
 
     try {
+      // A random token generated here (not read back from the database,
+      // which the anonymous public role isn't allowed to do under this
+      // table's RLS) lets the notify endpoint find this exact message
+      // server-side without needing SELECT access.
+      const notifyToken = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
       const { error } = await _sb.from('lgu_contact_messages').insert({
         first_name: firstName,
         last_name:  lastName,
@@ -2635,8 +2648,18 @@
         barangay,
         subject,
         message,
+        notify_token: notifyToken,
       });
       if (error) throw error;
+
+      // Best-effort email notification to LGU staff — the message is
+      // already safely saved regardless of whether this succeeds, so
+      // failures here are silent to the person submitting the form.
+      fetch('/api/notify-contact-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: notifyToken }),
+      }).catch(() => {});
 
       btn.textContent = '✅ Message Sent!';
       btn.style.background = '#2A5C44';
@@ -3252,6 +3275,22 @@
   }
 
   // ── BRANDING (LOGO + SITE NAME) ───────────────────
+  // Derives a working m.me Messenger link from whatever Facebook Page
+  // URL is already set in Settings — handles both the normal
+  // facebook.com/username format and the older profile.php?id=... one.
+  function facebookToMessengerUrl(fbUrl) {
+    if (!fbUrl) return '';
+    try {
+      const u = new URL(fbUrl);
+      const path = u.pathname.replace(/^\/+|\/+$/g, '');
+      if (!path || path.toLowerCase() === 'profile.php') {
+        const id = u.searchParams.get('id');
+        return id ? `https://m.me/${id}` : '';
+      }
+      return `https://m.me/${path}`;
+    } catch { return ''; }
+  }
+
   async function loadBranding() {
     const s = await safeGet('lgu_settings');
     if (!s) return;
@@ -3312,6 +3351,20 @@
         const icon = SOCIAL_ICONS[p];
         return `<a href="${esc(s[p])}" target="_blank" rel="noopener noreferrer" aria-label="${icon.label}"><svg viewBox="0 0 24 24">${icon.svg}</svg></a>`;
       }).join('');
+    }
+
+    // "Chat on Messenger" CTA on the Contact section — derived from the
+    // same Facebook Page URL already set in Settings, so there's nothing
+    // extra to configure; changing the Facebook link updates this too.
+    const messengerWrap = document.getElementById('messenger-cta-wrap');
+    if (messengerWrap) {
+      const messengerUrl = facebookToMessengerUrl(s.facebook);
+      messengerWrap.innerHTML = messengerUrl
+        ? `<a href="${esc(messengerUrl)}" target="_blank" rel="noopener noreferrer" class="messenger-cta">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.1 2 11.5c0 3.1 1.5 5.8 3.8 7.6V22l3.5-1.9c.9.3 1.9.4 2.9.4 5.5 0 10-4.1 10-9.5S17.5 2 12 2zm1 12.8-2.6-2.8-5 2.8 5.5-5.9 2.7 2.8 4.9-2.8-5.5 5.9z"/></svg>
+             Chat with us on Messenger
+           </a>`
+        : '';
     }
   }
 
