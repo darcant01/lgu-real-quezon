@@ -40,8 +40,6 @@ function formatDate(dateStr) {
 
 module.exports = async (req, res) => {
   const slug = (req.query.slug || '').toString();
-  const idMatch = slug.match(/(\d+)$/);
-  const id = idMatch ? idMatch[1] : slug;
 
   let article = null;
   try {
@@ -51,7 +49,20 @@ module.exports = async (req, res) => {
     );
     const rows = await resp.json();
     const articles = (rows && rows[0] && rows[0].value) || [];
-    article = articles.find(a => String(a.id || '') === String(id) && a.published);
+
+    // Prefer an exact match on the article's own custom slug field —
+    // supports fully custom /news/ links set by the admin, not just
+    // the auto-generated "title-id" format.
+    article = articles.find(a => a.slug && a.slug === slug && a.published);
+
+    // Fall back to extracting the trailing numeric id (the older,
+    // auto-generated URL format: "some-headline-1712345678901") — keeps
+    // any links already shared before the slug field existed working.
+    if (!article) {
+      const idMatch = slug.match(/(\d+)$/);
+      const id = idMatch ? idMatch[1] : slug;
+      article = articles.find(a => String(a.id || '') === String(id) && a.published);
+    }
   } catch (err) {
     console.error('[news page] fetch failed', err);
   }
@@ -72,7 +83,7 @@ module.exports = async (req, res) => {
   const summary     = article.summary || stripHtml(article.bodyHtml).slice(0, 200);
   const description = summary || `Read the latest from the ${SITE_NAME}.`;
   const image       = article.cover || DEFAULT_OG_IMAGE;
-  const canonicalUrl = `${SITE_URL}/news/${slug}`;
+  const canonicalUrl = `${SITE_URL}/news/${article.slug || slug}`;
   const spaUrl        = `${SITE_URL}/#article=${encodeURIComponent(article.id || article.title)}`;
 
   const html = `<!DOCTYPE html>

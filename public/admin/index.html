@@ -1986,7 +1986,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
       <!-- Row 1: meta -->
       <div class="form-group">
         <label>Headline *</label>
-        <input type="text" id="art-title" placeholder="e.g. Phase II of Coastal Project Breaks Ground">
+        <input type="text" id="art-title" placeholder="e.g. Phase II of Coastal Project Breaks Ground" oninput="onArticleTitleInput()">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -2026,6 +2026,13 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <label>Card Summary</label>
         <textarea id="art-summary" placeholder="A short 1–2 sentence summary shown in the news card on the homepage..." style="min-height:70px"></textarea>
         <div class="form-hint">Shown on the news card grid. Keep it under 150 characters.</div>
+      </div>
+
+      <!-- URL Slug -->
+      <div class="form-group">
+        <label>URL Slug</label>
+        <input type="text" id="art-slug" placeholder="auto-generated-from-title" oninput="onArticleSlugInput(this)">
+        <div class="form-hint" id="art-slug-preview" style="word-break:break-all;">Link: —</div>
       </div>
 
       <!-- Video / social embeds -->
@@ -5349,6 +5356,37 @@ function renderArticles() {
   updateStats();
 }
 
+// URL Slug helpers — lets an admin set a custom /news/ link per article
+// instead of always relying on the auto-generated one. New articles
+// suggest a slug from the title as you type; once you edit the slug
+// field directly, it stops auto-following the title.
+let _articleSlugManuallyEdited = false;
+function slugifyText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+function onArticleTitleInput() {
+  if (_articleSlugManuallyEdited) return;
+  document.getElementById('art-slug').value = slugifyText(document.getElementById('art-title').value);
+  updateArticleSlugPreview();
+}
+function onArticleSlugInput(el) {
+  _articleSlugManuallyEdited = el.value.trim() !== '';
+  el.value = slugifyText(el.value);
+  updateArticleSlugPreview();
+}
+function updateArticleSlugPreview() {
+  const slug = document.getElementById('art-slug').value.trim();
+  const preview = document.getElementById('art-slug-preview');
+  if (!preview) return;
+  preview.textContent = slug
+    ? `Link: ${location.origin}/news/${slug}`
+    : 'Link: (auto-generated from the headline when you save)';
+}
+
 function openArticleModal(editIdx = null) {
   document.getElementById('article-modal-title').textContent = editIdx !== null ? 'Edit Article' : 'New Article';
   document.getElementById('article-edit-id').value = editIdx !== null ? editIdx : '';
@@ -5360,6 +5398,13 @@ function openArticleModal(editIdx = null) {
   document.getElementById('art-date').value    = a.date    || new Date().toISOString().slice(0,10);
   document.getElementById('art-youtube').value  = a.youtube  || '';
   document.getElementById('art-facebook').value = a.facebook || '';
+
+  // URL Slug — existing articles keep their saved slug untouched as you
+  // edit the title; new articles auto-suggest one from the title as you
+  // type, until you edit the slug field yourself
+  document.getElementById('art-slug').value = a.slug || '';
+  _articleSlugManuallyEdited = !!a.slug;
+  updateArticleSlugPreview();
 
   // Cover image
   const coverData = a.cover || '';
@@ -5404,12 +5449,24 @@ async function saveArticle() {
   const idx   = document.getElementById('article-edit-id').value;
   const existingId = idx !== '' ? (articles[parseInt(idx)].id || articles[parseInt(idx)].title) : artId;
 
+  // URL Slug — fall back to auto-generating from the title if left
+  // blank, and make sure it doesn't collide with another article's slug
+  let slug = document.getElementById('art-slug').value.trim() || slugifyText(title);
+  const otherSlugs = articles
+    .filter((a, i) => idx === '' || i !== parseInt(idx))
+    .map(a => a.slug)
+    .filter(Boolean);
+  let uniqueSlug = slug, n = 2;
+  while (otherSlugs.includes(uniqueSlug)) { uniqueSlug = `${slug}-${n}`; n++; }
+  slug = uniqueSlug;
+
   // Cover and body images are now public Storage URLs (small strings), so
   // the full article — including cover and bodyHtml — goes straight to
   // shared storage. No more localStorage split.
   const fullArt = {
     id:        existingId,
     title,
+    slug,
     tag:       document.getElementById('art-tag').value,
     summary:   document.getElementById('art-summary').value.trim(),
     date:      document.getElementById('art-date').value,
