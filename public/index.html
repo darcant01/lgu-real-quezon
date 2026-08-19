@@ -2201,12 +2201,9 @@
       </div>
       <div class="form-group"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
       <div class="form-group"><label>Barangay</label>
-        <select>
+        <select id="contact-barangay-select">
           <option value="">Select your barangay</option>
-          <option>Calsada</option><option>Kapaluhan</option><option>Kinatakutan</option><option>Llavac</option>
-          <option>Mataas na Kahoy</option><option>Pisa</option><option>Poblacion I</option><option>Poblacion II</option>
-          <option>Poblacion III</option><option>Pugon</option><option>Tandoc</option><option>Villa Aurora</option>
-          <option>Villa Bela</option><option>Other/Non-Resident</option>
+          <option>Other/Non-Resident</option>
         </select>
       </div>
       <div class="form-group"><label>Subject / Concern</label>
@@ -4016,7 +4013,7 @@
   async function loadBarangays() {
     const bgys = await safeGet('lgu_barangays');
     const grid = document.getElementById('barangay-grid');
-    const DEFAULT_BGYS = ['Calsada','Kapaluhan','Kinatakutan','Llavac','Mataas na Kahoy','Pisa','Poblacion I','Poblacion II','Poblacion III','Pugon','Tandoc','Villa Aurora','Villa Bela'];
+    const DEFAULT_BGYS = ['Poblacion I','Poblacion 61','Ungos','Tignoan','Llavac','Cawayan','Kiloloran','Poblacion (Capalong)','Maragondon','Lubayat','Pandan','Malapad','Tanauan','Maunlad','Tagumpay','Bagong Silang','Masikap'];
     const list = (bgys && bgys.length) ? bgys : DEFAULT_BGYS.map((n,i) => ({ name:n, emoji:'🏘️', captain:'', population:'', area:'', description:'' }));
     grid.innerHTML = list.map((b,i) => `
       <div class="bgy-card">
@@ -4039,6 +4036,16 @@
     // Keep the "Barangays" hero stat in sync with the real count automatically
     const heroStat = document.getElementById('hero-stat-barangays');
     if (heroStat) heroStat.textContent = list.length;
+
+    // Keep the Contact form's Barangay dropdown in sync too — no more
+    // separately-maintained (and previously outdated/wrong) name list
+    const bgySelect = document.getElementById('contact-barangay-select');
+    if (bgySelect) {
+      bgySelect.innerHTML =
+        '<option value="">Select your barangay</option>' +
+        list.map(b => `<option>${esc(b.name)}</option>`).join('') +
+        '<option>Other/Non-Resident</option>';
+    }
   }
 
   // ── DEPARTMENT DIRECTORY ──────────────────────────
