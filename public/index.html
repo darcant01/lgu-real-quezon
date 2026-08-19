@@ -3535,6 +3535,7 @@
     if (window._currentAlert) {
       const btn = ensureAlertBadgeEl();
       btn.style.display = 'flex';
+      btn.style.pointerEvents = '';
       btn.style.background = '#C0392B';
       btn.style.boxShadow = '0 10px 28px rgba(192,57,43,0.55)';
       btn.style.animation = 'blink-emergency 1.6s steps(1,end) infinite';
@@ -3550,6 +3551,7 @@
     const enabled = Notification.permission === 'granted' && localStorage.getItem('lgu_alerts_enabled') === '1';
     const btn = ensureAlertBadgeEl();
     btn.style.display = 'flex';
+    btn.style.pointerEvents = '';
     btn.style.animation = 'none';
     btn.onclick = enableEmergencyAlerts;
     if (enabled) {
@@ -4246,11 +4248,47 @@
     renderAlertBadge();
   }
 
+  // Lightweight toast for the public site (admin has its own; this one
+  // matches the site's brand styling). Non-blocking, unlike alert().
+  function showPubToast(message, type) {
+    let el = document.getElementById('pub-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'pub-toast';
+      el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);z-index:700;background:#1A3C2E;color:white;padding:13px 22px;border-radius:8px;font-family:"Inter",sans-serif;font-size:0.85rem;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,0.3);opacity:0;transition:opacity 0.25s,transform 0.25s;max-width:88vw;text-align:center;pointer-events:none;';
+      document.body.appendChild(el);
+    }
+    el.style.background = type === 'error' ? '#C0392B' : '#1A3C2E';
+    el.textContent = message;
+    requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => {
+      el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 3200);
+  }
+  // Shows an immediate spinner on the alert badge the instant it's
+  // tapped — the enable/disable flow involves several sequential steps
+  // (service worker readiness, the permission prompt, a database
+  // round-trip) with real but easy-to-miss latency; without this, the
+  // button can feel unresponsive/delayed even though it's working.
+  function _setAlertBadgeLoading(loading) {
+    const btn = document.getElementById('alert-float-btn');
+    if (!btn) return;
+    if (loading) {
+      btn.dataset.prevContent = btn.innerHTML;
+      btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.4);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;"></span>';
+      btn.style.pointerEvents = 'none';
+      btn.style.animation = 'none';
+    } else {
+      btn.style.pointerEvents = '';
+    }
+  }
   async function enableEmergencyAlerts() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      alert('Push notifications aren\'t supported on this browser. Try Chrome, Edge, or Firefox.');
+      showPubToast('Push notifications aren\'t supported on this browser. Try Chrome, Edge, or Firefox.', 'error');
       return;
     }
+    _setAlertBadgeLoading(true);
     const reg = await navigator.serviceWorker.ready;
     const existingSub = await reg.pushManager.getSubscription();
 
@@ -4258,14 +4296,17 @@
     // not just a locally-saved flag (which could be stale from an earlier
     // attempt that silently failed to actually save).
     if (Notification.permission === 'granted' && existingSub && localStorage.getItem('lgu_alerts_enabled') === '1') {
+      _setAlertBadgeLoading(false);
       if (confirm('Turn off emergency alert notifications on this device?')) {
+        _setAlertBadgeLoading(true);
         try {
           await _sb.from('lgu_push_subscriptions').delete().eq('endpoint', existingSub.endpoint);
           await existingSub.unsubscribe();
         } catch {}
         localStorage.removeItem('lgu_alerts_enabled');
-        _updateAlertBtnUI();
+        showPubToast('Alerts turned off for this device.');
       }
+      _updateAlertBtnUI();
       return;
     }
 
@@ -4293,15 +4334,17 @@
       );
       if (saveError) {
         console.error('[push subscribe] save failed:', saveError);
-        alert('Notifications were allowed, but saving your subscription failed:\n' + saveError.message + '\n\n(This usually means the database table isn\'t set up yet — contact the site admin.)');
+        showPubToast('Notifications were allowed, but saving failed — the site admin needs to check the database setup.', 'error');
+        _updateAlertBtnUI();
         return; // don't mark as enabled if it wasn't actually saved
       }
       localStorage.setItem('lgu_alerts_enabled', '1');
       _updateAlertBtnUI();
-      alert('✅ Emergency alerts enabled on this device.');
+      showPubToast('✅ Emergency alerts enabled on this device.');
     } catch (err) {
       console.error('[push subscribe]', err);
-      alert('Could not enable alerts — please try again.');
+      showPubToast('Could not enable alerts — please try again.', 'error');
+      _updateAlertBtnUI();
     }
   }
   document.addEventListener('DOMContentLoaded', _updateAlertBtnUI);
