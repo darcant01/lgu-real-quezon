@@ -2599,76 +2599,10 @@
   }
 
   // ── CONTACT FORM ──────────────────────────────────
-  document.getElementById('send-btn').addEventListener('click', async function() {
-    const btn = this;
-    const errEl = document.getElementById('contact-form-error');
-    errEl.style.display = 'none';
-
-    const firstName = document.getElementById('contact-first-name').value.trim();
-    const lastName  = document.getElementById('contact-last-name').value.trim();
-    const email     = document.getElementById('contact-email').value.trim();
-    const barangay  = document.getElementById('contact-barangay-select').value;
-    const subject   = document.getElementById('contact-subject-select').value;
-    const messageEl = document.getElementById('contact-message');
-    const message   = messageEl.value.trim();
-
-    if (!firstName || !email || !message) {
-      errEl.textContent = 'Please fill in your first name, email, and message before sending.';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errEl.textContent = 'Please enter a valid email address.';
-      errEl.style.display = 'block';
-      return;
-    }
-
-    const originalText = btn.textContent;
-    btn.textContent = 'Sending…';
-    btn.disabled = true;
-
-    try {
-      // A random token generated here (not read back from the database,
-      // which the anonymous public role isn't allowed to do under this
-      // table's RLS) lets the notify endpoint find this exact message
-      // server-side without needing SELECT access.
-      const notifyToken = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
-      const { error } = await _sb.from('lgu_contact_messages').insert({
-        first_name: firstName,
-        last_name:  lastName,
-        email,
-        barangay,
-        subject,
-        message,
-        notify_token: notifyToken,
-      });
-      if (error) throw error;
-
-      // Best-effort email notification to LGU staff — the message is
-      // already safely saved regardless of whether this succeeds, so
-      // failures here are silent to the person submitting the form.
-      fetch('/api/notify-contact-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: notifyToken }),
-      }).catch(() => {});
-
-      btn.textContent = '✅ Message Sent!';
-      btn.style.background = '#2A5C44';
-      document.getElementById('contact-first-name').value = '';
-      document.getElementById('contact-last-name').value = '';
-      document.getElementById('contact-email').value = '';
-      document.getElementById('contact-barangay-select').value = '';
-      document.getElementById('contact-subject-select').value = '';
-      messageEl.value = '';
-      setTimeout(() => { btn.textContent = originalText; btn.style.background = ''; btn.disabled = false; }, 3000);
-    } catch (err) {
-      console.error('[contact form]', err);
-      errEl.textContent = 'Sorry, your message could not be sent — please try again, or contact us directly by phone or email.';
-      errEl.style.display = 'block';
-      btn.textContent = originalText;
-      btn.disabled = false;
-    }
+  document.getElementById('send-btn').addEventListener('click', function() {
+    this.textContent = '✅ Message Sent!';
+    this.style.background = '#2A5C44';
+    setTimeout(() => { this.textContent = 'Send Message ✉️'; this.style.background = ''; }, 3000);
   });
 
   // ── LIVE CONTENT FROM ADMIN ────────────────────────

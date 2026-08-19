@@ -1232,7 +1232,6 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('tourism', this)"><span class="icon">🏖️</span> Tourism</button>
     <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
     <button class="nav-item" onclick="switchPanel('awards', this)"><span class="icon">🏆</span> Awards</button>
-    <button class="nav-item" onclick="switchPanel('messages', this)"><span class="icon">📬</span> Messages <span class="nav-badge" id="messages-nav-badge" style="display:none;"></span></button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1555,28 +1554,6 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="awards-editor-body">
           <p style="color:var(--slate-l);font-size:0.85rem;">Loading awards…</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- CONTACT MESSAGES -->
-    <div class="panel" id="panel-messages">
-      <div class="card">
-        <div class="card-header">
-          <div><h3>📬 Contact Messages</h3><p>Submissions from the public Contact form. Only visible to logged-in staff — never publicly readable.</p></div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="messages-status-filter" onchange="loadContactMessages()" style="border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:0.82rem;font-family:'Inter',sans-serif;">
-              <option value="all">All</option>
-              <option value="new" selected>New</option>
-              <option value="read">Read</option>
-              <option value="replied">Replied</option>
-              <option value="archived">Archived</option>
-            </select>
-            <button class="btn btn-ghost" onclick="loadContactMessages()">↻ Refresh</button>
-          </div>
-        </div>
-        <div class="card-body" id="messages-body">
-          <p style="color:var(--slate-l);font-size:0.85rem;">Loading messages…</p>
         </div>
       </div>
     </div>
@@ -2547,8 +2524,8 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','messages','settings','users','audit'],
-  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero','messages'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','settings','users','audit'],
+  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
   compliance: ['dashboard','transparency','charter'],
   viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism','awards'],
 };
@@ -3200,7 +3177,7 @@ async function loadAll() {
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
     loadAttractionsAdmin(), loadAwardsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
-    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(), loadContactMessages(),
+    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(),
   ]);
   renderDash(); renderAnn(); renderArticles(); applySettings();
 }
@@ -3213,7 +3190,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', messages:'Contact Messages', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -5067,148 +5044,6 @@ async function saveAwards() {
   const ok = await sharedSet('lgu_awards', awards);
   if (ok) showToast(`Awards saved — ${awards.length} entr${awards.length!==1?'ies':'y'} ✓`);
   else showToast('Save failed','error');
-}
-
-// ═══════════════════════════════════════════════
-//  CONTACT MESSAGES
-// ═══════════════════════════════════════════════
-// Reads/writes lgu_contact_messages directly — safe to do with the
-// shared anon-based _sb client here specifically because this table's
-// RLS checks auth.role() = 'authenticated', and the admin panel holds
-// a genuine authenticated Supabase session (from the real
-// _sb.auth.signInWithPassword login), unlike most other tables in this
-// app where admin and public visitors share the same unauthenticated
-// anon access level.
-let contactMessages = [];
-
-async function loadContactMessages() {
-  const body = document.getElementById('messages-body');
-  const filter = document.getElementById('messages-status-filter')?.value || 'new';
-  if (body) body.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">Loading messages…</p>';
-
-  let query = _sb.from('lgu_contact_messages').select('*').order('created_at', { ascending: false });
-  if (filter !== 'all') query = query.eq('status', filter);
-  const { data, error } = await query;
-
-  // Keep the sidebar "new messages" badge in sync regardless of the
-  // current filter — always counts status='new', not whatever's shown
-  const { count: newCount } = await _sb.from('lgu_contact_messages').select('id', { count: 'exact', head: true }).eq('status', 'new');
-  const badge = document.getElementById('messages-nav-badge');
-  if (badge) {
-    if (newCount) { badge.textContent = newCount; badge.style.display = 'inline-flex'; }
-    else { badge.style.display = 'none'; }
-  }
-
-  if (!body) return;
-  if (error) {
-    body.innerHTML = `<div style="padding:16px;background:#FFF5F5;border-left:3px solid var(--red);border-radius:4px;font-size:0.82rem;color:var(--slate);">
-      Not set up yet — run <code>supabase/migrations/012_contact_messages.sql</code> in the Supabase SQL Editor, then refresh.
-    </div>`;
-    return;
-  }
-
-  contactMessages = data || [];
-  if (!contactMessages.length) {
-    body.innerHTML = `<p style="color:var(--slate-l);font-size:0.85rem;">No ${filter === 'all' ? '' : filter + ' '}messages${filter==='all'?' yet':''}.</p>`;
-    return;
-  }
-
-  const STATUS_COLORS = { new: 'var(--gold)', read: 'var(--slate-l)', replied: 'var(--green)', archived: 'var(--slate-l)' };
-  body.innerHTML = contactMessages.map((m, i) => {
-    const name = [m.first_name, m.last_name].filter(Boolean).join(' ') || '(no name given)';
-    const when = new Date(m.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
-    const repliedWhen = m.replied_at ? new Date(m.replied_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    return `
-    <div style="border:1.5px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:10px;background:${m.status==='new'?'var(--bg)':'white'};">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;">
-        <div style="min-width:0;">
-          <div style="font-weight:700;font-size:0.9rem;color:var(--slate);">${escHtml(name)} ${m.status==='new'?'<span style="background:var(--gold);color:white;font-size:0.6rem;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;">NEW</span>':''}</div>
-          <div style="font-size:0.76rem;color:var(--slate-l);margin-top:2px;">${escHtml(m.email||'no email')}${m.barangay?' · '+escHtml(m.barangay):''}${m.subject?' · '+escHtml(m.subject):''}</div>
-        </div>
-        <span style="font-size:0.7rem;font-weight:700;color:${STATUS_COLORS[m.status]||'var(--slate-l)'};text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">${escHtml(m.status||'new')}</span>
-      </div>
-      <p style="font-size:0.85rem;color:var(--slate);line-height:1.6;margin-bottom:12px;white-space:pre-wrap;">${escHtml(m.message)}</p>
-
-      ${m.reply_text ? `
-      <div style="background:rgba(56,161,105,0.07);border-left:3px solid var(--green);border-radius:6px;padding:10px 14px;margin-bottom:12px;">
-        <div style="font-size:0.68rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Your Reply · ${escHtml(repliedWhen)}${m.replied_by?' · '+escHtml(m.replied_by):''}</div>
-        <div style="font-size:0.82rem;color:var(--slate);white-space:pre-wrap;">${escHtml(m.reply_text)}</div>
-      </div>` : ''}
-
-      <div id="reply-box-${m.id}" style="display:none;margin-bottom:12px;">
-        <textarea id="reply-text-${m.id}" placeholder="Type your reply — it will be emailed to ${escHtml(m.email||'the sender')}..." style="width:100%;min-height:90px;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:0.85rem;font-family:'Inter',sans-serif;resize:vertical;"></textarea>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="btn btn-gold btn-sm" id="reply-send-btn-${m.id}" onclick="sendContactReply(${m.id})">📤 Send Reply</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleReplyBox(${m.id})">Cancel</button>
-        </div>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:0.72rem;color:var(--slate-l);">${when}</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${m.email ? `<button class="btn btn-ghost btn-sm" onclick="toggleReplyBox(${m.id})">✉️ ${m.reply_text?'Reply Again':'Reply'}</button>` : ''}
-          ${m.status!=='read' && m.status!=='replied' ? `<button class="btn btn-ghost btn-sm" onclick="updateMessageStatus(${m.id},'read')">Mark Read</button>` : ''}
-          ${m.status!=='archived' ? `<button class="btn btn-ghost btn-sm" onclick="updateMessageStatus(${m.id},'archived')">Archive</button>` : ''}
-          <button class="btn btn-danger btn-sm" onclick="deleteContactMessage(${m.id})" title="Delete">🗑</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function toggleReplyBox(id) {
-  const box = document.getElementById(`reply-box-${id}`);
-  if (!box) return;
-  const isOpen = box.style.display !== 'none';
-  box.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) document.getElementById(`reply-text-${id}`)?.focus();
-}
-
-async function sendContactReply(id) {
-  const textEl = document.getElementById(`reply-text-${id}`);
-  const btn = document.getElementById(`reply-send-btn-${id}`);
-  const replyText = (textEl?.value || '').trim();
-  if (!replyText) { showToast('Write a reply before sending', 'error'); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-  try {
-    const { data: sessionData } = await _sb.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (!token) throw new Error('Not logged in');
-
-    const resp = await fetch('/api/send-contact-reply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id, replyText }),
-    });
-    const result = await resp.json();
-    if (!resp.ok) throw new Error(result.error || 'Failed to send');
-
-    auditLog('reply', `Replied to contact message #${id}`, _currentUser);
-    showToast('Reply sent ✓');
-    loadContactMessages();
-  } catch (err) {
-    console.error('[send reply]', err);
-    showToast(err.message || 'Failed to send reply', 'error');
-    btn.disabled = false;
-    btn.textContent = '📤 Send Reply';
-  }
-}
-
-async function updateMessageStatus(id, status) {
-  const { error } = await _sb.from('lgu_contact_messages').update({ status }).eq('id', id);
-  if (error) { showToast('Update failed', 'error'); return; }
-  showToast(status === 'read' ? 'Marked as read' : status === 'replied' ? 'Marked as replied' : 'Archived');
-  loadContactMessages();
-}
-
-async function deleteContactMessage(id) {
-  if (!confirm('Delete this message permanently?')) return;
-  const { error } = await _sb.from('lgu_contact_messages').delete().eq('id', id);
-  if (error) { showToast('Delete failed', 'error'); return; }
-  showToast('Message deleted');
-  loadContactMessages();
 }
 
 // ═══════════════════════════════════════════════
