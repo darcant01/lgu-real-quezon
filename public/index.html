@@ -4129,6 +4129,8 @@
         <div class="dir-contacts">
           ${d.phone ? `<div class="dir-contact-row">📞 <a href="tel:${esc(d.phone)}">${esc(d.phone)}</a></div>` : ''}
           ${d.email ? `<div class="dir-contact-row">✉️ <a href="mailto:${esc(d.email)}">${esc(d.email)}</a></div>` : ''}
+          ${d.facebook ? `<div class="dir-contact-row">📘 <a href="${esc(d.facebook)}" target="_blank" rel="noopener noreferrer">Facebook Page</a></div>` : ''}
+          ${d.socialLink ? `<div class="dir-contact-row">🔗 <a href="${esc(d.socialLink)}" target="_blank" rel="noopener noreferrer">Social Media</a></div>` : ''}
         </div>
         ${d.hours ? `<div class="dir-hours">🕐 ${esc(d.hours)}</div>` : ''}
       </div>`).join('');

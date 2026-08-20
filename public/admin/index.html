@@ -4232,7 +4232,7 @@ function initDefaultDirectory() {
   renderDirectoryEditor();
   showToast('Default offices loaded — fill in details ✓');
 }
-function addDept() { directory.push({ dept:'Office', name:'', head:'', phone:'', email:'', hours:'' }); renderDirectoryEditor(); }
+function addDept() { directory.push({ dept:'Office', name:'', head:'', phone:'', email:'', hours:'', facebook:'', socialLink:'' }); renderDirectoryEditor(); }
 function renderDirectoryEditor() {
   const el = document.getElementById('directory-editor');
   if (!directory.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No offices. Click "Load Default Offices" or + Add Office.</p>'; return; }
@@ -4250,6 +4250,8 @@ function renderDirectoryEditor() {
         ['Phone Number','tel','phone','(042) XXX-XXXX'],
         ['Email Address','email','email','rhu@realquezon.gov.ph'],
         ['Office Hours','text','hours','Mon–Fri, 8AM–5PM'],
+        ['Facebook Page','url','facebook','https://facebook.com/...'],
+        ['Other Social Link','url','socialLink','Instagram, Twitter/X, etc.'],
       ].map(([lbl,type,key,ph]) => `
         <div style="margin-bottom:7px;">
           <div style="font-size:0.6rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px;">${lbl}</div>
