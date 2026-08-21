@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  // Applied before any CSS renders, to avoid a flash of the wrong
+  // color scheme on load if the visitor previously chose orange.
+  if (localStorage.getItem('lgu_theme') === 'orange') document.documentElement.classList.add('theme-orange');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0F2419">
@@ -51,6 +56,17 @@
     --slate:    #4A5568;
     --slate-l:  #718096;
     --sage:     #8FAF8F;
+  }
+  /* Orange theme — swaps the primary brand color family (originally
+     forest green) for a warm burnt-orange palette. Gold accent is left
+     as-is since gold already harmonizes naturally with orange. Applied
+     via a class on <html> so every element using var(--forest...)
+     repaints automatically — see toggleColorTheme() near the bottom of
+     this file's script. */
+  html.theme-orange {
+    --forest:   #C2571B;
+    --forest-d: #7A3410;
+    --forest-l: #E07A35;
   }
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: hidden; max-width: 100vw; }
   body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--slate); line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
@@ -1673,6 +1689,14 @@
 <a href="#contact" class="floating-contact-btn" title="Contact Us" aria-label="Contact Us">
   <span style="font-size:24px;">✉️</span>
 </a>
+
+<!-- FLOATING COLOR THEME TOGGLE — bottom-left, mirrors the alert
+     badge/contact button on the right. Switches the site's primary
+     brand color between forest green and orange. -->
+<button id="theme-toggle-btn" type="button" onclick="toggleColorTheme()" title="Switch color theme" aria-label="Switch color theme"
+  style="position:fixed;bottom:22px;left:22px;width:58px;height:58px;border-radius:50%;border:3px solid white;background:var(--forest);color:white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;z-index:585;box-shadow:0 10px 26px rgba(0,0,0,0.28);transition:background 0.2s,transform 0.2s;">
+  🎨
+</button>
 
 <!-- MOBILE NAV DRAWER -->
 <div class="mobile-nav-drawer" id="mobile-nav-drawer">
@@ -4395,6 +4419,14 @@
         label: String(label),
       }).then(() => {}).catch(() => {});
     } catch {}
+  }
+
+  // ── COLOR THEME TOGGLE ────────────────────────────
+  function toggleColorTheme() {
+    const isOrange = document.documentElement.classList.toggle('theme-orange');
+    localStorage.setItem('lgu_theme', isOrange ? 'orange' : 'default');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) btn.title = isOrange ? 'Switch back to green' : 'Switch color theme';
   }
 
   // ── INIT ──────────────────────────────────────────
