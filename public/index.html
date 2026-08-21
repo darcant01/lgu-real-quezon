@@ -623,6 +623,8 @@
     /* Sections */
     .services { padding: 60px 5%; }
     .services-grid { grid-template-columns: 1fr 1fr; }
+    #videos-and-report-section { padding: 60px 5%; }
+    .videos-report-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
     .about { padding: 60px 5%; grid-template-columns: 1fr; gap: 40px; }
     .about > div { min-width: 0; }
     .about-map-card { padding: 28px 22px; }
@@ -1907,13 +1909,28 @@
   </div>
 </section>
 
-<!-- FEATURED VIDEOS -->
-<section id="featured-videos-section" style="padding:70px 8%;background:var(--cream);display:none;">
-  <div class="section-label" style="color:var(--gold);">Watch</div>
-  <h2 class="section-title">Featured Videos</h2>
-  <p class="section-sub">See the municipality in action.</p>
-  <div id="featured-video-main" style="max-width:640px;margin:32px auto 0;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);"></div>
-  <div id="featured-video-list" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:900px;margin:24px auto 0;"></div>
+<!-- FEATURED VIDEOS + REPORT A PROBLEM (side by side) -->
+<section id="videos-and-report-section" style="padding:70px 8%;background:var(--cream);">
+  <div class="videos-report-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start;">
+    <!-- LEFT: Featured Videos (hidden entirely if no videos configured) -->
+    <div id="featured-videos-col" style="display:none;">
+      <div class="section-label" style="color:var(--gold);">Watch</div>
+      <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">Featured Videos</h2>
+      <p class="section-sub" style="margin-bottom:22px;">See the municipality in action.</p>
+      <div id="featured-video-main" style="border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);"></div>
+      <div id="featured-video-list" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;"></div>
+    </div>
+    <!-- RIGHT: Report a Problem -->
+    <div>
+      <div class="section-label" style="color:#C0392B;">Community</div>
+      <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">See a Problem in Your Barangay?</h2>
+      <p class="section-sub" style="margin-bottom:22px;">Report potholes, broken streetlights, flooding, garbage collection issues, and more — directly to the municipality.</p>
+      <div style="background:white;border-radius:14px;border:1.5px dashed rgba(192,57,43,0.4);padding:36px 28px;text-align:center;">
+        <div style="font-size:38px;margin-bottom:14px;">🚧</div>
+        <button onclick="openReportProblemModal()" style="background:#C0392B;color:white;padding:13px 30px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.92rem;font-weight:700;cursor:pointer;">🚧 Report a Problem</button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="services" id="services">
@@ -1929,12 +1946,6 @@
     <a href="#" class="service-card"><div class="service-icon">📑</div><h3>Certifications</h3><p>Certificate of residency, indigency, and other municipal certifications.</p><div class="service-arrow">Request Now →</div></a>
     <a href="#" class="service-card"><div class="service-icon">🌊</div><h3>Environmental Office</h3><p>Coastal resource management, DENR coordination, and environmental clearances.</p><div class="service-arrow">Inquire →</div></a>
     <a href="#" class="service-card"><div class="service-icon">💰</div><h3>Real Property Tax</h3><p>RPT payments, tax declarations, assessments, and exemption applications.</p><div class="service-arrow">Pay Now →</div></a>
-  </div>
-  <div style="text-align:center;margin-top:44px;padding:28px;background:white;border-radius:14px;border:1.5px dashed rgba(201,162,39,0.4);max-width:600px;margin-left:auto;margin-right:auto;">
-    <div style="font-size:32px;margin-bottom:10px;">🚧</div>
-    <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:#0F2419;margin-bottom:6px;">See a Problem in Your Barangay?</h3>
-    <p style="font-size:0.88rem;color:#718096;margin-bottom:18px;">Report potholes, broken streetlights, flooding, garbage collection issues, and more — directly to the municipality.</p>
-    <button onclick="openReportProblemModal()" style="background:#C0392B;color:white;padding:12px 28px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">🚧 Report a Problem</button>
   </div>
 </section>
 
@@ -3336,10 +3347,10 @@
   let _showcaseVideos = [];
   async function loadFeaturedVideos() {
     const videos = await safeGet('lgu_showcase_videos');
-    const section = document.getElementById('featured-videos-section');
-    if (!videos || !videos.length) { if (section) section.style.display = 'none'; return; }
+    const col = document.getElementById('featured-videos-col');
+    if (!videos || !videos.length) { if (col) col.style.display = 'none'; return; }
     _showcaseVideos = videos;
-    section.style.display = 'block';
+    col.style.display = 'block';
     showFeaturedVideo(0);
 
     const listEl = document.getElementById('featured-video-list');
