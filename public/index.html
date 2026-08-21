@@ -490,6 +490,13 @@
     padding: 8px; color: white; flex-direction: column;
     gap: 5px; align-items: center; justify-content: center;
   }
+  .nav-search-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.8); padding: 8px; margin-left: 8px;
+    transition: color 0.2s;
+  }
+  .nav-search-btn:hover { color: var(--gold); }
   .nav-hamburger span {
     display: block; width: 22px; height: 2px;
     background: white; border-radius: 2px;
@@ -1665,10 +1672,25 @@
     <li id="install-app-li" style="display:none;"><a href="javascript:void(0)" class="nav-admin-btn" onclick="installApp()" title="Install this site as an app">📲 Install</a></li>
     <li><a href="#" class="nav-admin-btn" onclick="openAdminModal(event)" title="Staff Login">🔐 Admin</a></li>
   </ul>
+  <button class="nav-search-btn" id="search-btn" onclick="openSiteSearch()" aria-label="Search the site" title="Search">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  </button>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
 </nav>
+
+<!-- SITE-WIDE SEARCH OVERLAY -->
+<div id="site-search-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,36,25,0.8);z-index:700;padding:70px 16px 40px;overflow-y:auto;">
+  <div style="max-width:640px;margin:0 auto;">
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <input type="text" id="site-search-input" placeholder="Search services, documents, FAQs, barangays, news..." oninput="performSiteSearch(this.value)"
+        style="flex:1;padding:14px 18px;border-radius:8px;border:none;font-size:1rem;font-family:'Inter',sans-serif;outline:none;">
+      <button onclick="closeSiteSearch()" aria-label="Close search" style="background:white;border:none;border-radius:8px;padding:0 18px;font-size:1.2rem;cursor:pointer;color:#1A3C2E;">✕</button>
+    </div>
+    <div id="site-search-results"></div>
+  </div>
+</div>
 
 <!-- FLOATING CONTACT BUTTON — positioned above the alert-badge zone
      (bottom:22px is reserved for the alert-enable / minimized-alert
@@ -1878,6 +1900,13 @@
   </div>
 </section>
 
+<!-- WEATHER & RAINFALL WIDGET -->
+<section style="padding:40px 8%;background:var(--forest-d);">
+  <div id="weather-widget" style="max-width:900px;margin:0 auto;">
+    <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:0.85rem;">Loading current weather…</div>
+  </div>
+</section>
+
 <section class="services" id="services">
   <div class="section-label">Citizen Services</div>
   <h2 class="section-title">How Can We Help You Today?</h2>
@@ -1891,6 +1920,12 @@
     <a href="#" class="service-card"><div class="service-icon">📑</div><h3>Certifications</h3><p>Certificate of residency, indigency, and other municipal certifications.</p><div class="service-arrow">Request Now →</div></a>
     <a href="#" class="service-card"><div class="service-icon">🌊</div><h3>Environmental Office</h3><p>Coastal resource management, DENR coordination, and environmental clearances.</p><div class="service-arrow">Inquire →</div></a>
     <a href="#" class="service-card"><div class="service-icon">💰</div><h3>Real Property Tax</h3><p>RPT payments, tax declarations, assessments, and exemption applications.</p><div class="service-arrow">Pay Now →</div></a>
+  </div>
+  <div style="text-align:center;margin-top:44px;padding:28px;background:white;border-radius:14px;border:1.5px dashed rgba(201,162,39,0.4);max-width:600px;margin-left:auto;margin-right:auto;">
+    <div style="font-size:32px;margin-bottom:10px;">🚧</div>
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:#0F2419;margin-bottom:6px;">See a Problem in Your Barangay?</h3>
+    <p style="font-size:0.88rem;color:#718096;margin-bottom:18px;">Report potholes, broken streetlights, flooding, garbage collection issues, and more — directly to the municipality.</p>
+    <button onclick="openReportProblemModal()" style="background:#C0392B;color:white;padding:12px 28px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">🚧 Report a Problem</button>
   </div>
 </section>
 
@@ -4410,6 +4445,261 @@
     } catch {}
   }
 
+  // ── REPORT A PROBLEM ────────────────────────────────
+  let _reportPhotoFile = null;
+  function openReportProblemModal() {
+    if (document.getElementById('report-problem-overlay')) return;
+    _reportPhotoFile = null;
+    const barangayOptions = (_kvCache?.lgu_barangays || []).map(b => `<option>${esc(b.name)}</option>`).join('');
+    const overlay = document.createElement('div');
+    overlay.id = 'report-problem-overlay';
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:14px;max-width:520px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.4);overflow:hidden;">
+        <div style="background:#C0392B;padding:20px 24px;">
+          <h2 style="color:white;font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:800;margin:0;">🚧 Report a Problem</h2>
+        </div>
+        <div style="padding:26px 28px;">
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Category *</label>
+            <select id="report-category" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;">
+              <option>Pothole</option><option>Broken Streetlight</option><option>Flooding</option>
+              <option>Garbage Collection</option><option>Water Supply</option><option>Damaged Road/Bridge</option><option>Other</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Barangay</label>
+            <select id="report-barangay" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;">
+              <option value="">Select barangay</option>${barangayOptions}
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Landmark / Street (optional)</label>
+            <input type="text" id="report-location" placeholder="e.g. near the elementary school" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;">
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Description *</label>
+            <textarea id="report-description" placeholder="Describe the problem..." style="width:100%;min-height:80px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;resize:vertical;"></textarea>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Photo (optional)</label>
+            <input type="file" id="report-photo-input" accept="image/*" style="width:100%;font-size:0.85rem;">
+            <div id="report-photo-preview" style="margin-top:8px;"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+            <div>
+              <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Your Name (optional)</label>
+              <input type="text" id="report-name" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.78rem;font-weight:700;color:#4A5568;margin-bottom:5px;">Phone (optional)</label>
+              <input type="tel" id="report-phone" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;">
+            </div>
+          </div>
+          <div id="report-error" style="display:none;color:#C0392B;font-size:0.82rem;margin-bottom:12px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button id="report-submit-btn" onclick="submitProblemReport()" style="flex:1;background:#C0392B;color:white;padding:12px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;">Submit Report</button>
+            <button onclick="this.closest('.lgu-modal-overlay').remove()" style="background:#EDF2F7;color:#4A5568;padding:12px 20px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+    document.getElementById('report-photo-input').addEventListener('change', handleReportPhotoSelect);
+  }
+  function handleReportPhotoSelect(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('report-photo-preview');
+    if (!file) { _reportPhotoFile = null; preview.innerHTML = ''; return; }
+    if (file.size > 8 * 1024 * 1024) { alert('Photo too large (max 8MB)'); e.target.value = ''; _reportPhotoFile = null; return; }
+    _reportPhotoFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => { preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:140px;border-radius:6px;">`; };
+    reader.readAsDataURL(file);
+  }
+  async function submitProblemReport() {
+    const category    = document.getElementById('report-category').value;
+    const barangay     = document.getElementById('report-barangay').value;
+    const location      = document.getElementById('report-location').value.trim();
+    const description   = document.getElementById('report-description').value.trim();
+    const name           = document.getElementById('report-name').value.trim();
+    const phone           = document.getElementById('report-phone').value.trim();
+    const errEl = document.getElementById('report-error');
+    const btn   = document.getElementById('report-submit-btn');
+    errEl.style.display = 'none';
+
+    if (!description) {
+      errEl.textContent = 'Please describe the problem.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    try {
+      let photoUrl = null;
+      if (_reportPhotoFile) {
+        const safeName = _reportPhotoFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `reports/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+        const { error: upErr } = await _sb.storage.from('lgu-reports').upload(path, _reportPhotoFile, { contentType: _reportPhotoFile.type });
+        if (upErr) throw upErr;
+        const { data: pub } = _sb.storage.from('lgu-reports').getPublicUrl(path);
+        photoUrl = pub.publicUrl;
+      }
+
+      const { error } = await _sb.from('lgu_problem_reports').insert({
+        category, description, barangay, location_detail: location,
+        photo_url: photoUrl, reporter_name: name, reporter_phone: phone,
+      });
+      if (error) throw error;
+
+      document.getElementById('report-problem-overlay').innerHTML = `
+        <div style="background:white;border-radius:14px;max-width:420px;width:100%;padding:40px 32px;text-align:center;">
+          <div style="font-size:44px;margin-bottom:14px;">✅</div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.2rem;color:#0F2419;margin-bottom:10px;">Report Submitted</h2>
+          <p style="color:#718096;font-size:0.9rem;margin-bottom:22px;">Thank you for helping improve our community. The relevant office will review your report.</p>
+          <button onclick="this.closest('.lgu-modal-overlay').remove()" style="background:#1A3C2E;color:white;padding:11px 28px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;">Close</button>
+        </div>`;
+    } catch (err) {
+      console.error('[report problem]', err);
+      errEl.textContent = 'Something went wrong — please try again, or contact us directly.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit Report';
+    }
+  }
+
+  // ── SITE-WIDE SEARCH ────────────────────────────────
+  // Searches across everything already loaded in _kvCache (from the
+  // single bulk prefetch on page load) — no extra network requests.
+  let _searchResults = [];
+  function openSiteSearch() {
+    const overlay = document.getElementById('site-search-overlay');
+    overlay.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    const input = document.getElementById('site-search-input');
+    input.value = '';
+    document.getElementById('site-search-results').innerHTML = '';
+    setTimeout(() => input.focus(), 60);
+  }
+  function closeSiteSearch() {
+    document.getElementById('site-search-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  function performSiteSearch(rawQuery) {
+    const resultsEl = document.getElementById('site-search-results');
+    const query = rawQuery.trim().toLowerCase();
+    if (query.length < 2) { resultsEl.innerHTML = ''; _searchResults = []; return; }
+
+    const results = [];
+    const has = (...vals) => vals.some(v => (v||'').toLowerCase().includes(query));
+    const push = (icon, category, title, desc, sectionId, extra) =>
+      results.push({ icon, category, title, desc, sectionId, ...extra });
+
+    (_kvCache?.lgu_services || []).forEach(s => { if (has(s.title, s.desc)) push('🛎️','Service', s.title, s.desc, 'services'); });
+    (_kvCache?.lgu_documents || []).forEach(d => { if (has(d.title)) push('📄','Document', d.title, d.category, 'transparency'); });
+    (_kvCache?.lgu_faq || []).forEach(f => { if (has(f.question, f.answer)) push('❓','FAQ', f.question, (f.answer||'').slice(0,90), 'faq'); });
+    (_kvCache?.lgu_barangays || []).forEach(b => { if (has(b.name)) push('🏘️','Barangay', b.name, b.captain ? 'Captain: '+b.captain : '', 'barangays'); });
+    (_kvCache?.lgu_directory || []).forEach(d => { if (has(d.name, d.dept)) push('📞','Office', d.name, d.dept, 'directory'); });
+    (_kvCache?.lgu_programs || []).forEach(p => { if (has(p.title, p.desc)) push('📈','Program', p.title, p.desc, 'programs'); });
+    (_kvCache?.lgu_attractions || []).forEach(a => { if (has(a.name, a.description)) push('🏖️','Tourism', a.name, a.description, 'tourism'); });
+    (_kvCache?.lgu_awards || []).forEach(a => { if (has(a.title, a.awardingBody)) push('🏆','Award', a.title, a.awardingBody, null, { aboutModal: true }); });
+    (_kvCache?.lgu_articles || []).forEach(a => {
+      if (a.published && has(a.title, a.summary)) {
+        const idx = (window._pubArticles || []).findIndex(x => x.id === a.id);
+        push('📰','News', a.title, a.summary, 'news', { articleIdx: idx });
+      }
+    });
+
+    _searchResults = results.slice(0, 24);
+    if (!_searchResults.length) {
+      resultsEl.innerHTML = '<p style="color:rgba(255,255,255,0.55);text-align:center;padding:24px;">No results found.</p>';
+      return;
+    }
+    resultsEl.innerHTML = _searchResults.map((r, i) => `
+      <div onclick="goToSearchResult(${i})" style="background:white;border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;display:flex;gap:12px;align-items:flex-start;">
+        <span style="font-size:20px;flex-shrink:0;">${r.icon}</span>
+        <div style="min-width:0;">
+          <div style="font-size:0.66rem;font-weight:700;color:#C9A227;text-transform:uppercase;letter-spacing:0.05em;">${esc(r.category)}</div>
+          <div style="font-weight:700;color:#0F2419;font-size:0.9rem;line-height:1.3;">${esc(r.title||'')}</div>
+          ${r.desc ? `<div style="font-size:0.8rem;color:#718096;margin-top:2px;">${esc((r.desc||'').slice(0,110))}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+  function goToSearchResult(i) {
+    const r = _searchResults[i];
+    if (!r) return;
+    closeSiteSearch();
+    if (typeof r.articleIdx === 'number' && r.articleIdx >= 0) {
+      setTimeout(() => openArticleModal_pub(r.articleIdx), 250);
+    } else if (r.aboutModal) {
+      setTimeout(() => openAwardsModal(), 250);
+    } else if (r.sectionId) {
+      setTimeout(() => document.getElementById(r.sectionId)?.scrollIntoView({ behavior: 'smooth' }), 250);
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('site-search-overlay')?.style.display === 'block') closeSiteSearch();
+  });
+
+  // ── WEATHER & RAINFALL WIDGET ──────────────────────
+  // Free, no-API-key weather data (Open-Meteo) for the municipality's
+  // coordinates. This is general awareness only, NOT an official flood
+  // monitoring system — always links out to PAGASA for real advisories,
+  // and says so plainly rather than implying more authority than it has.
+  const WEATHER_CODES = {
+    0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
+    45: ['Foggy', '🌫️'], 48: ['Foggy', '🌫️'],
+    51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
+    61: ['Light rain', '🌧️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+    80: ['Rain showers', '🌧️'], 81: ['Rain showers', '🌧️'], 82: ['Violent showers', '⛈️'],
+    95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm', '⛈️'], 99: ['Thunderstorm', '⛈️'],
+  };
+  async function loadWeatherWidget() {
+    const el = document.getElementById('weather-widget');
+    if (!el) return;
+    try {
+      const resp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=14.666986&longitude=121.6025564&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=precipitation_sum&timezone=Asia%2FManila&forecast_days=1');
+      const data = await resp.json();
+      const cur = data.current;
+      const [label, icon] = WEATHER_CODES[cur.weather_code] || ['—', '🌡️'];
+      const rainToday = data.daily?.precipitation_sum?.[0] ?? 0;
+      const heavyRain = rainToday >= 30 || cur.precipitation >= 7.5; // rough PAGASA-style heavy-rain threshold
+
+      el.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;">
+          <div style="display:flex;align-items:center;gap:16px;">
+            <span style="font-size:42px;">${icon}</span>
+            <div>
+              <div style="color:white;font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;line-height:1;">${Math.round(cur.temperature_2m)}°C</div>
+              <div style="color:rgba(255,255,255,0.6);font-size:0.82rem;margin-top:3px;">${esc(label)} · Real, Quezon</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div style="color:white;font-size:1rem;font-weight:700;">${Math.round(cur.relative_humidity_2m)}%</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:0.7rem;">Humidity</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="color:white;font-size:1rem;font-weight:700;">${Math.round(cur.wind_speed_10m)} km/h</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:0.7rem;">Wind</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="color:${heavyRain?'#F0A030':'white'};font-size:1rem;font-weight:700;">${rainToday.toFixed(1)} mm</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:0.7rem;">Rain Today</div>
+            </div>
+          </div>
+        </div>
+        ${heavyRain ? `<div style="margin-top:16px;background:rgba(240,160,48,0.15);border-left:3px solid #F0A030;border-radius:6px;padding:10px 14px;color:#F0A030;font-size:0.82rem;">⚠️ Significant rainfall detected today — residents in low-lying and coastal barangays should stay alert.</div>` : ''}
+        <div style="margin-top:14px;font-size:0.72rem;color:rgba(255,255,255,0.35);">General weather awareness only, not an official flood warning. For official advisories, visit <a href="https://www.pagasa.dost.gov.ph" target="_blank" rel="noopener noreferrer" style="color:rgba(255,255,255,0.55);">PAGASA</a> or contact the MDRRMO.</div>`;
+    } catch (err) {
+      console.error('[weather widget]', err);
+      el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.35);font-size:0.82rem;">Weather data is temporarily unavailable.</div>';
+    }
+  }
+
   // ── FLOATING MAP MODAL ─────────────────────────────
   function openMapModal() {
     if (document.getElementById('map-modal-overlay')) return;
@@ -4450,6 +4740,7 @@
     ]);
     subscribeToAlertRealtime();
     trackPageview();
+    loadWeatherWidget();
 
     // If someone opened a shared article link (#article=...), show that
     // article automatically instead of just the homepage

@@ -1232,6 +1232,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('tourism', this)"><span class="icon">🏖️</span> Tourism</button>
     <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
     <button class="nav-item" onclick="switchPanel('awards', this)"><span class="icon">🏆</span> Awards</button>
+    <button class="nav-item" onclick="switchPanel('reports', this)"><span class="icon">🚧</span> Problem Reports <span class="nav-badge" id="reports-nav-badge" style="display:none;"></span></button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1554,6 +1555,27 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="awards-editor-body">
           <p style="color:var(--slate-l);font-size:0.85rem;">Loading awards…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROBLEM REPORTS -->
+    <div class="panel" id="panel-reports">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>🚧 Problem Reports</h3><p>Submitted by residents via the public site's "Report a Problem" button.</p></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="reports-status-filter" onchange="loadProblemReports()" style="border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:0.82rem;font-family:'Inter',sans-serif;">
+              <option value="all">All</option>
+              <option value="new" selected>New</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <button class="btn btn-ghost" onclick="loadProblemReports()">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="card-body" id="reports-body">
+          <p style="color:var(--slate-l);font-size:0.85rem;">Loading reports…</p>
         </div>
       </div>
     </div>
@@ -2524,8 +2546,8 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','settings','users','audit'],
-  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','reports','settings','users','audit'],
+  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero','reports'],
   compliance: ['dashboard','transparency','charter'],
   viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism','awards'],
 };
@@ -3177,7 +3199,7 @@ async function loadAll() {
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
     loadAttractionsAdmin(), loadAwardsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
-    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(),
+    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(), loadProblemReports(),
   ]);
   renderDash(); renderAnn(); renderArticles(); applySettings();
 }
@@ -3190,7 +3212,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', reports:'Problem Reports', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -5046,6 +5068,89 @@ async function saveAwards() {
   const ok = await sharedSet('lgu_awards', awards);
   if (ok) showToast(`Awards saved — ${awards.length} entr${awards.length!==1?'ies':'y'} ✓`);
   else showToast('Save failed','error');
+}
+
+// ═══════════════════════════════════════════════
+//  PROBLEM REPORTS
+// ═══════════════════════════════════════════════
+// Reads/writes lgu_problem_reports directly — safe with the shared
+// anon-based _sb client here specifically because this table's RLS
+// checks auth.role() = 'authenticated', and the admin panel holds a
+// genuine authenticated Supabase session (real signInWithPassword
+// login), same trust model as lgu_contact_messages used.
+let problemReports = [];
+
+async function loadProblemReports() {
+  const body = document.getElementById('reports-body');
+  const filter = document.getElementById('reports-status-filter')?.value || 'new';
+  if (body) body.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">Loading reports…</p>';
+
+  let query = _sb.from('lgu_problem_reports').select('*').order('created_at', { ascending: false });
+  if (filter !== 'all') query = query.eq('status', filter);
+  const { data, error } = await query;
+
+  const { count: newCount } = await _sb.from('lgu_problem_reports').select('id', { count: 'exact', head: true }).eq('status', 'new');
+  const badge = document.getElementById('reports-nav-badge');
+  if (badge) {
+    if (newCount) { badge.textContent = newCount; badge.style.display = 'inline-flex'; }
+    else { badge.style.display = 'none'; }
+  }
+
+  if (!body) return;
+  if (error) {
+    body.innerHTML = `<div style="padding:16px;background:#FFF5F5;border-left:3px solid var(--red);border-radius:4px;font-size:0.82rem;color:var(--slate);">
+      Not set up yet — run <code>supabase/migrations/015_problem_reports.sql</code> in the Supabase SQL Editor, then refresh.
+    </div>`;
+    return;
+  }
+
+  problemReports = data || [];
+  if (!problemReports.length) {
+    body.innerHTML = `<p style="color:var(--slate-l);font-size:0.85rem;">No ${filter === 'all' ? '' : filter.replace('_',' ') + ' '}reports${filter==='all'?' yet':''}.</p>`;
+    return;
+  }
+
+  const STATUS_COLORS = { new: 'var(--gold)', in_progress: '#3182CE', resolved: 'var(--green)' };
+  const CATEGORY_ICONS = { 'Pothole':'🕳️', 'Broken Streetlight':'💡', 'Flooding':'🌊', 'Garbage Collection':'🗑️', 'Water Supply':'🚰', 'Damaged Road/Bridge':'🌉', 'Other':'📋' };
+  body.innerHTML = problemReports.map(r => {
+    const when = new Date(r.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    return `
+    <div style="border:1.5px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:10px;background:${r.status==='new'?'var(--bg)':'white'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;">
+        <div style="min-width:0;">
+          <div style="font-weight:700;font-size:0.9rem;color:var(--slate);">${CATEGORY_ICONS[r.category]||'📋'} ${escHtml(r.category||'Other')} ${r.status==='new'?'<span style="background:var(--gold);color:white;font-size:0.6rem;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;">NEW</span>':''}</div>
+          <div style="font-size:0.76rem;color:var(--slate-l);margin-top:2px;">${r.barangay?escHtml(r.barangay):'Barangay not specified'}${r.location_detail?' · '+escHtml(r.location_detail):''}</div>
+        </div>
+        <span style="font-size:0.7rem;font-weight:700;color:${STATUS_COLORS[r.status]||'var(--slate-l)'};text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;">${escHtml((r.status||'new').replace('_',' '))}</span>
+      </div>
+      <p style="font-size:0.85rem;color:var(--slate);line-height:1.6;margin-bottom:10px;white-space:pre-wrap;">${escHtml(r.description)}</p>
+      ${r.photo_url ? `<img src="${r.photo_url}" style="max-width:220px;max-height:160px;border-radius:6px;margin-bottom:10px;display:block;cursor:pointer;" onclick="window.open('${r.photo_url}','_blank')">` : ''}
+      ${(r.reporter_name || r.reporter_phone) ? `<div style="font-size:0.78rem;color:var(--slate-l);margin-bottom:10px;">Reported by: ${escHtml(r.reporter_name||'Anonymous')}${r.reporter_phone?' · '+escHtml(r.reporter_phone):''}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:0.72rem;color:var(--slate-l);">${when}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${r.status!=='in_progress' ? `<button class="btn btn-ghost btn-sm" onclick="updateReportStatus(${r.id},'in_progress')">Mark In Progress</button>` : ''}
+          ${r.status!=='resolved' ? `<button class="btn btn-ghost btn-sm" onclick="updateReportStatus(${r.id},'resolved')">Mark Resolved</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteProblemReport(${r.id})" title="Delete">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateReportStatus(id, status) {
+  const { error } = await _sb.from('lgu_problem_reports').update({ status }).eq('id', id);
+  if (error) { showToast('Update failed', 'error'); return; }
+  showToast(status === 'resolved' ? 'Marked as resolved ✓' : 'Marked as in progress');
+  loadProblemReports();
+}
+
+async function deleteProblemReport(id) {
+  if (!confirm('Delete this report permanently?')) return;
+  const { error } = await _sb.from('lgu_problem_reports').delete().eq('id', id);
+  if (error) { showToast('Delete failed', 'error'); return; }
+  showToast('Report deleted');
+  loadProblemReports();
 }
 
 // ═══════════════════════════════════════════════
