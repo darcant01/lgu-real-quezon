@@ -1233,6 +1233,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <button class="nav-item" onclick="switchPanel('aboutpages', this)"><span class="icon">📖</span> About Us</button>
     <button class="nav-item" onclick="switchPanel('awards', this)"><span class="icon">🏆</span> Awards</button>
     <button class="nav-item" onclick="switchPanel('reports', this)"><span class="icon">🚧</span> Problem Reports <span class="nav-badge" id="reports-nav-badge" style="display:none;"></span></button>
+    <button class="nav-item" onclick="switchPanel('videos', this)"><span class="icon">🎬</span> Featured Videos</button>
     <div class="nav-section" style="margin-top:8px">Site</div>
     <button class="nav-item" onclick="switchPanel('settings', this)"><span class="icon">⚙️</span> Settings</button>
     <div class="nav-section" style="margin-top:8px" id="nav-section-security">Security</div>
@@ -1576,6 +1577,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         </div>
         <div class="card-body" id="reports-body">
           <p style="color:var(--slate-l);font-size:0.85rem;">Loading reports…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEATURED VIDEOS -->
+    <div class="panel" id="panel-videos">
+      <div class="card">
+        <div class="card-header">
+          <div><h3>🎬 Featured Videos</h3><p>Facebook video/reel links shown above Citizen Services on the public site. First video plays large and autoplays (muted); others show as clickable previews.</p></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" onclick="addShowcaseVideo()">+ Add Video</button>
+            <button class="btn btn-gold" onclick="saveShowcaseVideos()">💾 Save</button>
+          </div>
+        </div>
+        <div class="card-body" id="videos-editor-body">
+          <p style="color:var(--slate-l);font-size:0.85rem;">Loading videos…</p>
         </div>
       </div>
     </div>
@@ -2546,8 +2563,8 @@ const SESSION_MS     = 30 * 60 * 1000; // 30 min
 const WARN_BEFORE_MS =  5 * 60 * 1000; // warn 5 min before
 
 const ROLE_PANELS = {
-  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','reports','settings','users','audit'],
-  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero','reports'],
+  super:      ['dashboard','alert','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','hero','officials','services','programs','tourism','aboutpages','awards','reports','videos','settings','users','audit'],
+  editor:     ['dashboard','alert','announcements','articles','events','gallery','hero','reports','videos'],
   compliance: ['dashboard','transparency','charter'],
   viewer:     ['dashboard','announcements','articles','events','gallery','transparency','charter','barangays','directory','faq','officials','services','programs','tourism','awards'],
 };
@@ -3199,7 +3216,7 @@ async function loadAll() {
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
     loadAttractionsAdmin(), loadAwardsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
-    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(), loadProblemReports(),
+    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(), loadProblemReports(), loadShowcaseVideosAdmin(),
   ]);
   renderDash(); renderAnn(); renderArticles(); applySettings();
 }
@@ -3212,7 +3229,7 @@ function switchPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', reports:'Problem Reports', settings:'Settings', users:'User Management', audit:'Audit Trail' };
+  const titles = { dashboard:'Dashboard', alert:'Emergency Alert', announcements:'Announcements', articles:'News & Articles', events:'Events', gallery:'Photo Gallery', transparency:'Public Documents', charter:'Citizen\'s Charter', barangays:'Barangay Profiles', directory:'Department Directory', faq:'FAQ / Help Center', hero:'Hero Images', officials:'Elected Officials', services:'Citizen Services', programs:'Programs & Projects', tourism:'Tourism & Attractions', aboutpages:'About Us Pages', awards:'Awards & Recognition', reports:'Problem Reports', videos:'Featured Videos', settings:'Settings', users:'User Management', audit:'Audit Trail' };
   document.getElementById('topbar-title').textContent = titles[id] || id;
   // Auto-close sidebar drawer on mobile
   if (window.innerWidth <= 900) closeAdminSidebar();
@@ -5151,6 +5168,48 @@ async function deleteProblemReport(id) {
   if (error) { showToast('Delete failed', 'error'); return; }
   showToast('Report deleted');
   loadProblemReports();
+}
+
+// ═══════════════════════════════════════════════
+//  FEATURED VIDEOS
+// ═══════════════════════════════════════════════
+let showcaseVideos = [];
+
+async function loadShowcaseVideosAdmin() {
+  showcaseVideos = await sharedGet('lgu_showcase_videos') || [];
+  renderShowcaseVideosEditor();
+}
+
+function renderShowcaseVideosEditor() {
+  const el = document.getElementById('videos-editor-body');
+  if (!showcaseVideos.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No videos yet. Click + Add Video.</p>'; return; }
+  el.innerHTML = showcaseVideos.map((v,i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);margin-bottom:10px;">
+      <div>
+        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Facebook Video/Reel Link *</div>
+        <input type="text" value="${escHtml(v.url||'')}" placeholder="https://www.facebook.com/reel/..." oninput="showcaseVideos[${i}].url=this.value"
+          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Title / Caption</div>
+        <input type="text" value="${escHtml(v.title||'')}" placeholder="e.g. MDRRMO Evacuation Drill" oninput="showcaseVideos[${i}].title=this.value"
+          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteShowcaseVideo(${i})" title="Remove">🗑</button>
+    </div>`).join('');
+}
+
+function addShowcaseVideo() { showcaseVideos.push({ url:'', title:'' }); renderShowcaseVideosEditor(); }
+function deleteShowcaseVideo(i) {
+  if (!confirm('Remove this video?')) return;
+  showcaseVideos.splice(i,1); renderShowcaseVideosEditor(); showToast('Removed');
+}
+async function saveShowcaseVideos() {
+  const cleaned = showcaseVideos.filter(v => v.url && v.url.trim());
+  if (cleaned.length !== showcaseVideos.length) { showcaseVideos = cleaned; renderShowcaseVideosEditor(); }
+  const ok = await sharedSet('lgu_showcase_videos', showcaseVideos);
+  if (ok) showToast(`Videos saved — ${showcaseVideos.length} video${showcaseVideos.length!==1?'s':''} ✓`);
+  else showToast('Save failed','error');
 }
 
 // ═══════════════════════════════════════════════
