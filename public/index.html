@@ -718,7 +718,6 @@
     .services, .about, .news, .officials, .programs,
     .events, .gallery, .transparency, .barangays,
     .directory, .faq, .contact { padding: 50px 5%; }
-    .find-us-section { padding: 0 5% 50px !important; }
     .section-sub { font-size: 0.88rem; }
 
     /* Lightbox */
@@ -1705,6 +1704,14 @@
   🎨
 </button>
 
+<!-- FLOATING MAP ICON — stacked above the theme toggle, opens a modal
+     with the embedded map to the Municipal Hall instead of a full
+     dedicated page section. -->
+<button id="map-float-btn" type="button" onclick="openMapModal()" title="Locate the Municipal Hall" aria-label="Locate the Municipal Hall"
+  style="position:fixed;bottom:98px;left:22px;width:58px;height:58px;border-radius:50%;border:3px solid white;background:linear-gradient(145deg, var(--forest), var(--forest-l));color:white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;z-index:585;box-shadow:0 10px 26px rgba(0,0,0,0.28);transition:background 0.3s, transform 0.2s;">
+  📍
+</button>
+
 <!-- MOBILE NAV DRAWER -->
 <div class="mobile-nav-drawer" id="mobile-nav-drawer">
   <div class="drawer-section">Explore</div>
@@ -2249,26 +2256,6 @@
       <div id="contact-form-error" style="display:none;color:#C0392B;font-size:0.82rem;margin-bottom:12px;"></div>
       <button class="btn-primary" id="send-btn" style="width:100%;justify-content:center;cursor:pointer;border:none;font-family:'Inter',sans-serif;">Send Message ✉️</button>
     </div>
-  </div>
-</section>
-
-<!-- FIND US MAP -->
-<section class="find-us-section" style="padding:0 8% 90px;background:var(--cream);">
-  <div class="section-label" style="color:var(--gold);">Find Us</div>
-  <h2 class="section-title" style="margin-bottom:20px;">Locate the Municipal Hall</h2>
-  <div style="border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);border:1px solid rgba(0,0,0,0.06);">
-    <iframe
-      src="https://maps.google.com/maps?q=14.666986,121.6025564&z=16&output=embed"
-      width="100%" height="380" style="border:0;display:block;" allowfullscreen="" loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade" title="Map to the Real, Quezon Municipal Hall">
-    </iframe>
-  </div>
-  <div style="text-align:center;margin-top:20px;">
-    <a href="https://www.google.com/maps/search/?api=1&query=14.666986,121.6025564&query_place_id=ChIJec3hnWuIlzMR8DPKLiBS2Rw"
-      target="_blank" rel="noopener noreferrer"
-      style="display:inline-flex;align-items:center;gap:8px;background:var(--forest);color:white;padding:13px 28px;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:600;text-decoration:none;box-shadow:0 8px 20px rgba(var(--forest-rgb),0.25);">
-      📍 Get Directions
-    </a>
   </div>
 </section>
 
@@ -4446,6 +4433,36 @@
         label: String(label),
       }).then(() => {}).catch(() => {});
     } catch {}
+  }
+
+  // ── FLOATING MAP MODAL ─────────────────────────────
+  function openMapModal() {
+    if (document.getElementById('map-modal-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'map-modal-overlay';
+    overlay.className = 'lgu-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:14px;max-width:560px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.45);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #EAE5DB;">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:#0F2419;margin:0;">📍 Locate the Municipal Hall</h3>
+          <button onclick="this.closest('.lgu-modal-overlay').remove()" style="background:none;border:none;font-size:22px;color:#718096;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <iframe
+          src="https://maps.google.com/maps?q=14.666986,121.6025564&z=16&output=embed"
+          width="100%" height="340" style="border:0;display:block;" allowfullscreen="" loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade" title="Map to the Real, Quezon Municipal Hall">
+        </iframe>
+        <div style="padding:18px 22px;">
+          <a href="https://www.google.com/maps/search/?api=1&query=14.666986,121.6025564&query_place_id=ChIJec3hnWuIlzMR8DPKLiBS2Rw"
+            target="_blank" rel="noopener noreferrer"
+            style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--forest);color:white;padding:12px;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;text-decoration:none;">
+            📍 Get Directions
+          </a>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   }
 
   // ── COLOR THEME TOGGLE ────────────────────────────
