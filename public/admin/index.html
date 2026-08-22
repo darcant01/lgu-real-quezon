@@ -1585,14 +1585,18 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
     <div class="panel" id="panel-videos">
       <div class="card">
         <div class="card-header">
-          <div><h3>🎬 Featured Videos</h3><p>Facebook video/reel links shown above Citizen Services on the public site. First video plays large and autoplays (muted); others show as clickable previews.</p></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-ghost" onclick="addShowcaseVideo()">+ Add Video</button>
-            <button class="btn btn-gold" onclick="saveShowcaseVideos()">💾 Save</button>
-          </div>
+          <div><h3>🎬 Featured Video</h3><p>A single Facebook video/reel link shown above Citizen Services on the public site — plays large and autoplays (muted).</p></div>
         </div>
-        <div class="card-body" id="videos-editor-body">
-          <p style="color:var(--slate-l);font-size:0.85rem;">Loading videos…</p>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Facebook Video/Reel Link</label>
+            <input type="text" id="showcase-video-url" placeholder="https://www.facebook.com/reel/...">
+          </div>
+          <div class="form-group">
+            <label>Title / Caption (optional)</label>
+            <input type="text" id="showcase-video-title" placeholder="e.g. MDRRMO Evacuation Drill">
+          </div>
+          <button class="btn btn-gold" onclick="saveShowcaseVideos()">💾 Save</button>
         </div>
       </div>
     </div>
@@ -5171,44 +5175,19 @@ async function deleteProblemReport(id) {
 }
 
 // ═══════════════════════════════════════════════
-//  FEATURED VIDEOS
+//  FEATURED VIDEO
 // ═══════════════════════════════════════════════
-let showcaseVideos = [];
-
 async function loadShowcaseVideosAdmin() {
-  showcaseVideos = await sharedGet('lgu_showcase_videos') || [];
-  renderShowcaseVideosEditor();
-}
-
-function renderShowcaseVideosEditor() {
-  const el = document.getElementById('videos-editor-body');
-  if (!showcaseVideos.length) { el.innerHTML = '<p style="color:var(--slate-l);font-size:0.85rem;">No videos yet. Click + Add Video.</p>'; return; }
-  el.innerHTML = showcaseVideos.map((v,i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);margin-bottom:10px;">
-      <div>
-        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Facebook Video/Reel Link *</div>
-        <input type="text" value="${escHtml(v.url||'')}" placeholder="https://www.facebook.com/reel/..." oninput="showcaseVideos[${i}].url=this.value"
-          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
-      </div>
-      <div>
-        <div style="font-size:0.62rem;font-weight:700;color:var(--slate-l);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">Title / Caption</div>
-        <input type="text" value="${escHtml(v.title||'')}" placeholder="e.g. MDRRMO Evacuation Drill" oninput="showcaseVideos[${i}].title=this.value"
-          style="width:100%;border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:0.82rem;font-family:'Inter',sans-serif;outline:none;">
-      </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteShowcaseVideo(${i})" title="Remove">🗑</button>
-    </div>`).join('');
-}
-
-function addShowcaseVideo() { showcaseVideos.push({ url:'', title:'' }); renderShowcaseVideosEditor(); }
-function deleteShowcaseVideo(i) {
-  if (!confirm('Remove this video?')) return;
-  showcaseVideos.splice(i,1); renderShowcaseVideosEditor(); showToast('Removed');
+  let data = await sharedGet('lgu_showcase_videos');
+  const v = Array.isArray(data) ? (data[0] || {}) : (data || {});
+  document.getElementById('showcase-video-url').value = v.url || '';
+  document.getElementById('showcase-video-title').value = v.title || '';
 }
 async function saveShowcaseVideos() {
-  const cleaned = showcaseVideos.filter(v => v.url && v.url.trim());
-  if (cleaned.length !== showcaseVideos.length) { showcaseVideos = cleaned; renderShowcaseVideosEditor(); }
-  const ok = await sharedSet('lgu_showcase_videos', showcaseVideos);
-  if (ok) showToast(`Videos saved — ${showcaseVideos.length} video${showcaseVideos.length!==1?'s':''} ✓`);
+  const url = document.getElementById('showcase-video-url').value.trim();
+  const title = document.getElementById('showcase-video-title').value.trim();
+  const ok = await sharedSet('lgu_showcase_videos', { url, title });
+  if (ok) showToast(url ? 'Featured video saved ✓' : 'Featured video cleared ✓');
   else showToast('Save failed','error');
 }
 
