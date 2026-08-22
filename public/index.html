@@ -1933,18 +1933,18 @@
 </section>
 
 <!-- FEATURED VIDEOS + REPORT A PROBLEM (side by side) -->
-<section id="videos-and-report-section" style="padding:70px 8%;background:var(--cream);">
+<section id="videos-and-report-section" style="padding:70px 8%;background:var(--cream);overflow:hidden;">
   <div class="videos-report-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start;">
     <!-- LEFT: Featured Video (hidden entirely if none configured) -->
-    <div id="featured-videos-col" style="display:none;">
+    <div id="featured-videos-col" style="display:none;min-width:0;">
       <div class="section-label" style="color:var(--gold);">Watch</div>
       <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">Featured Video</h2>
       <p class="section-sub" style="margin-bottom:22px;">See the municipality in action.</p>
-      <div id="featured-video-main" style="width:100%;max-width:380px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);display:flex;justify-content:center;text-align:center;"></div>
+      <div id="featured-video-main" style="width:100%;max-width:380px;min-width:0;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);display:flex;justify-content:center;text-align:center;"></div>
       <p id="featured-video-caption" style="display:none;margin-top:14px;font-size:0.9rem;font-weight:600;color:#0F2419;text-align:center;"></p>
     </div>
     <!-- RIGHT: Report a Problem -->
-    <div>
+    <div style="min-width:0;">
       <div class="section-label" style="color:#C0392B;">Community</div>
       <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">See a Problem in Your Barangay?</h2>
       <p class="section-sub" style="margin-bottom:22px;">Report potholes, broken streetlights, flooding, garbage collection issues, and more — directly to the municipality.</p>
