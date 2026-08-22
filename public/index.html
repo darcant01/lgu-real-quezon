@@ -448,6 +448,10 @@
      on the parent container. */
   #featured-video-main, #featured-video-main > span { margin: 0 auto !important; }
   #featured-video-main iframe { display: block; margin: 0 auto; max-width: 100%; }
+  .featured-video-box { max-width: 380px; }
+  @media (min-width: 900px) {
+    .featured-video-box { max-width: 500px; }
+  }
   .contact-row h4 { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage); margin-bottom: 4px; }
   .contact-row p { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.55; }
   .contact-form { margin-top: 36px; }
@@ -1940,7 +1944,7 @@
       <div class="section-label" style="color:var(--gold);">Watch</div>
       <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">Featured Video</h2>
       <p class="section-sub" style="margin-bottom:22px;">See the municipality in action.</p>
-      <div id="featured-video-main" style="width:100%;max-width:380px;min-width:0;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);display:flex;justify-content:center;text-align:center;"></div>
+      <div id="featured-video-main" class="featured-video-box" style="width:100%;min-width:0;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);display:flex;justify-content:center;text-align:center;"></div>
       <p id="featured-video-caption" style="display:none;margin-top:14px;font-size:0.9rem;font-weight:600;color:#0F2419;text-align:center;"></p>
     </div>
     <!-- RIGHT: Report a Problem -->
