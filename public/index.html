@@ -1933,7 +1933,7 @@
       <div class="section-label" style="color:var(--gold);">Watch</div>
       <h2 class="section-title" style="font-size:clamp(1.4rem,2.6vw,1.9rem);margin-bottom:12px;">Featured Video</h2>
       <p class="section-sub" style="margin-bottom:22px;">See the municipality in action.</p>
-      <div id="featured-video-main" style="border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);"></div>
+      <div id="featured-video-main" style="position:relative;width:100%;max-width:380px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.12);background:#000;"></div>
       <p id="featured-video-caption" style="display:none;margin-top:14px;font-size:0.9rem;font-weight:600;color:#0F2419;text-align:center;"></p>
     </div>
     <!-- RIGHT: Report a Problem -->
@@ -3350,7 +3350,16 @@
     if (!v || !v.url) { if (col) col.style.display = 'none'; return; }
     col.style.display = 'block';
     const main = document.getElementById('featured-video-main');
-    main.innerHTML = `<iframe src="${getFacebookVideoEmbedUrl(v.url, true)}" width="100%" height="480" style="border:none;overflow:hidden;display:block;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" title="${esc(v.title||'Featured video')}"></iframe>`;
+    // Facebook Reels are portrait (roughly 9:16) — a fixed pixel height
+    // left a large blank gap below the video on narrow screens, since
+    // the actual video content renders shorter than any fixed height at
+    // mobile widths. Using a responsive aspect-ratio box (padding-top
+    // trick) instead means the iframe always fills its container
+    // exactly, at any screen width.
+    main.innerHTML = `
+      <div style="position:relative;padding-top:177.78%;">
+        <iframe src="${getFacebookVideoEmbedUrl(v.url, true)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" title="${esc(v.title||'Featured video')}"></iframe>
+      </div>`;
     const captionEl = document.getElementById('featured-video-caption');
     if (captionEl) {
       if (v.title) { captionEl.textContent = v.title; captionEl.style.display = 'block'; }
