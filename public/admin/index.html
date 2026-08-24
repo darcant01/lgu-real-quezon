@@ -3259,7 +3259,17 @@ async function loadAll() {
     loadEventsAdmin(), loadGalleryAdmin(), loadServicesAdmin(), loadProgramsAdmin(),
     loadAttractionsAdmin(), loadAwardsAdmin(), loadAboutPagesAdmin(),
     loadDocumentsAdmin(), loadCharterAdmin(), loadBarangaysAdmin(), loadDirectoryAdmin(),
-    loadFAQAdmin(), loadAdminUsers(), loadAuditTrail(), loadProblemReports(), loadShowcaseVideosAdmin(),
+    loadFAQAdmin(), loadProblemReports(), loadShowcaseVideosAdmin(),
+    // Always loaded regardless of role, even though only Super Admin can
+    // see these panels in the UI (switchPanel() blocks navigating to
+    // them, and the nav items are hidden) — auditLog() runs on every
+    // action across the whole app and saves auditTrail back to the
+    // database each time; if it started empty for non-super accounts,
+    // their very first action would overwrite the entire audit history
+    // with just that one new entry. Loading it for everyone avoids that
+    // data-loss risk; the UI-level restriction is what keeps it out of
+    // non-super accounts' actual view.
+    loadAdminUsers(), loadAuditTrail(),
   ]);
   renderDash(); renderAnn(); renderArticles(); applySettings();
 }
@@ -3268,6 +3278,16 @@ async function loadAll() {
 //  PANEL SWITCHING
 // ═══════════════════════════════════════════════
 function switchPanel(id, el) {
+  // Nav buttons for restricted panels are hidden via applyRBAC(), but
+  // hiding a button doesn't stop someone from calling this function
+  // directly (e.g. from the browser console) with a panel id their
+  // role shouldn't see — checked here so the actual panel switch
+  // itself enforces the same restriction, not just the button.
+  const allowed = ROLE_PANELS[_currentUser?.role] || ROLE_PANELS.viewer;
+  if (!allowed.includes(id)) {
+    showToast('You don\'t have access to this section.', 'error');
+    return;
+  }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
