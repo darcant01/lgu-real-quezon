@@ -2239,6 +2239,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
         <label>Service Title *</label>
         <input type="text" id="charter-title" placeholder="e.g. Application for Business Permit (New)">
       </div>
+      <div class="form-group">
+        <label>Photo (optional)</label>
+        <div id="charter-photo-preview" onclick="document.getElementById('charter-photo-input').click()" style="width:100%;height:130px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#1A3C2E,#2A5C44);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;">
+          <span style="font-size:32px;">📜</span>
+          <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.68rem;padding:3px 9px;border-radius:12px;">📷 Upload</div>
+        </div>
+        <input type="file" id="charter-photo-input" accept="image/*" style="display:none" onchange="handleCharterPhotoUpload(event)">
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label>Category</label>
@@ -3930,6 +3938,7 @@ async function saveDocuments() {
 // ═══════════════════════════════════════════════
 let charterEntries = [];
 let _charterEditIdx = null; // null = new entry, number = editing existing
+let _charterPhotoUrl = '';
 let _charterReqs  = [];     // working requirements list while editing
 let _charterSteps = [];     // working steps list while editing
 
@@ -3946,7 +3955,9 @@ function renderCharterList() {
   }
   el.innerHTML = charterEntries.map((c, i) => `
     <div style="display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);margin-bottom:10px;">
-      <div style="width:44px;height:44px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📜</div>
+      <div style="width:44px;height:44px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;">
+        ${c.photo ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;">` : '📜'}
+      </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:0.92rem;font-weight:600;color:var(--forest-d);">${escHtml(c.title||'Untitled Service')}</div>
         <div style="font-size:0.78rem;color:var(--slate-l);margin-top:2px;">
@@ -3982,12 +3993,45 @@ function openCharterEditModal(idx = null) {
   document.getElementById('charter-total-fee').value      = c.totalFee || '';
   document.getElementById('charter-active-toggle').className = 'toggle ' + (idx === null || c.active !== false ? 'on' : '');
 
+  _charterPhotoUrl = c.photo || '';
+  const photoPreview = document.getElementById('charter-photo-preview');
+  photoPreview.innerHTML = _charterPhotoUrl
+    ? `<img src="${_charterPhotoUrl}" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.68rem;padding:3px 9px;border-radius:12px;">📷 Change</div>`
+    : `<span style="font-size:32px;">📜</span><div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.68rem;padding:3px 9px;border-radius:12px;">📷 Upload</div>`;
+
   _charterReqs  = c.requirements ? [...c.requirements] : [];
   _charterSteps = c.steps ? c.steps.map(s => ({...s})) : [];
   renderCharterReqs();
   renderCharterSteps();
 
   openModal('charter-edit-modal');
+}
+
+function handleCharterPhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!checkFileSize(file, 'image')) { event.target.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    openResizeModal(e.target.result, () => {
+      const btn = Array.from(document.querySelectorAll('.preset-btn')).find(b=>b.textContent.includes('Full Width (body)'));
+      if (btn) btn.click();
+    }, async (dataUrl, w, h) => {
+      showToast('Uploading photo…');
+      try {
+        const publicUrl = await uploadDataUrlToStorage(dataUrl, 'lgu-images', 'charter/');
+        _charterPhotoUrl = publicUrl;
+        const photoPreview = document.getElementById('charter-photo-preview');
+        photoPreview.innerHTML = `<img src="${publicUrl}" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:white;font-size:0.68rem;padding:3px 9px;border-radius:12px;">📷 Change</div>`;
+        showToast(`Photo set — ${w}×${h}px ✓`);
+      } catch (err) {
+        console.error('[charter photo upload]', err);
+        showToast('Upload failed — check your connection and try again', 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
 }
 
 function renderCharterReqs() {
@@ -4038,6 +4082,7 @@ async function saveCharterEntry() {
 
   const entry = {
     title,
+    photo:    _charterPhotoUrl || '',
     category: document.getElementById('charter-category').value,
     office:   document.getElementById('charter-office').value.trim(),
     clients:  document.getElementById('charter-clients').value.trim(),
