@@ -216,6 +216,24 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--sla
 .btn-ghost { background: transparent; color: var(--slate); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--bg); }
 .btn-sm { padding: 5px 11px; font-size: 0.75rem; }
+/* Viewer (read-only) role: disables every mutating control site-wide via
+   CSS rather than a one-time JS pass — this also catches buttons
+   rendered later by list/editor functions (e.g. each gallery photo's
+   own delete button only exists after that panel's render function
+   runs), which a single querySelectorAll() at login time would miss. */
+body.role-readonly .btn-danger,
+body.role-readonly .btn-gold,
+body.role-readonly .btn-ghost[onclick*="add"],
+body.role-readonly .btn-ghost[onclick*="Add"],
+body.role-readonly button[onclick*="delete"],
+body.role-readonly button[onclick*="Delete"],
+body.role-readonly button[onclick*="save"],
+body.role-readonly button[onclick*="Save"],
+body.role-readonly input[type="file"] {
+  pointer-events: none !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
 
 /* ── FORM ── */
 .form-group { margin-bottom: 18px; }
@@ -2790,6 +2808,22 @@ function completeLogin(user) {
   }
 }
 
+// Defense-in-depth: the CSS rule above stops viewer-role users from
+// clicking mutating buttons at all, but a technically-inclined user
+// could still call these functions directly from the browser console —
+// this checks the actual logged-in role at the point of action, not
+// just whether a button looked clickable.
+function _isReadOnlyUser() {
+  return _currentUser && _currentUser.role === 'viewer';
+}
+function _blockIfReadOnly() {
+  if (_isReadOnlyUser()) {
+    showToast('Your account has view-only access — this action is not permitted.', 'error');
+    return true;
+  }
+  return false;
+}
+
 function applyRBAC(role) {
   const allowed = ROLE_PANELS[role] || ROLE_PANELS.viewer;
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -2802,9 +2836,12 @@ function applyRBAC(role) {
   const navAudit = document.getElementById('nav-audit');
   if (navUsers) navUsers.style.display = role==='super' ? '' : 'none';
   if (navAudit) navAudit.style.display = role==='super' ? '' : 'none';
-  if (role === 'viewer') {
-    document.querySelectorAll('.btn-gold').forEach(b => { b.disabled=true; b.title='Read-only access'; });
-  }
+  // CSS-based (not one-time querySelectorAll) so it also covers buttons
+  // rendered later — e.g. each gallery photo's own delete button only
+  // exists after renderGalleryEditor() runs, well after this function's
+  // initial pass. A body class + CSS rule catches those automatically,
+  // where a single querySelectorAll pass at login time would not.
+  document.body.classList.toggle('role-readonly', role === 'viewer');
 }
 
 function doLogout() {
@@ -3118,6 +3155,7 @@ async function sharedGet(key) {
   }
 }
 async function sharedSet(key, val) {
+  if (_blockIfReadOnly()) return false;
   try {
     const str = JSON.stringify(val);
     // Soft guard: warn if payload is unusually large (Supabase JSONB has no hard 200KB limit,
@@ -3145,6 +3183,7 @@ function localGet(key) {
   catch { return null; }
 }
 function localSet(key, val) {
+  if (_blockIfReadOnly()) return false;
   try {
     const str = JSON.stringify(val);
     // Check if localStorage has space
@@ -4712,6 +4751,7 @@ function moveGallery(i, dir) {
   renderGalleryEditor();
 }
 function deleteGallery(i) {
+  if (_blockIfReadOnly()) return;
   if(!confirm('Remove this photo?'))return;
   const removed = galleryPhotos[i];
   galleryPhotos.splice(i,1); renderGalleryEditor(); showToast('Photo removed');
