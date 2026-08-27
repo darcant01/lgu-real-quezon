@@ -167,6 +167,14 @@
   .nav-links { display: flex; align-items: center; gap: 22px; list-style: none; }
   .nav-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
   .nav-links a:hover { color: var(--gold); }
+  /* Scroll-spy: simple underline on whichever top-level nav link
+     matches the section currently in view — see the IntersectionObserver
+     setup near the end of this file's script. */
+  .nav-links > li > a.nav-active {
+    color: var(--gold);
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 4px;
+  }
 
   /* About dropdown */
   .nav-dropdown { position: relative; }
@@ -4802,6 +4810,32 @@
     document.body.appendChild(overlay);
   }
 
+  // ── SCROLL-SPY (nav underline) ─────────────────────
+  // Simple underline on whichever top-level nav link matches the
+  // section currently in view — only tracks direct #id anchors on the
+  // main nav bar, not dropdown sub-items.
+  function initScrollSpy() {
+    const navLinks = Array.from(document.querySelectorAll('.nav-links > li > a[href^="#"]'))
+      .filter(a => a.getAttribute('href').length > 1);
+    const sections = navLinks
+      .map(a => ({ link: a, el: document.querySelector(a.getAttribute('href')) }))
+      .filter(pair => pair.el);
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const match = sections.find(s => s.el === entry.target);
+        if (!match) return;
+        if (entry.isIntersecting) {
+          navLinks.forEach(a => a.classList.remove('nav-active'));
+          match.link.classList.add('nav-active');
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+
+    sections.forEach(s => observer.observe(s.el));
+  }
+
   // ── INIT ──────────────────────────────────────────
   (async () => {
     await prefetchAllContent(); // one request instead of 15
@@ -4814,6 +4848,7 @@
     subscribeToAlertRealtime();
     trackPageview();
     loadWeatherWidget();
+    initScrollSpy();
 
     // If someone opened a shared article link (#article=...), show that
     // article automatically instead of just the homepage
