@@ -1846,6 +1846,14 @@ body.role-readonly [oninput] {
     <!-- SETTINGS -->
     <div class="panel" id="panel-settings">
 
+      <!-- MAINTENANCE MODE -->
+      <div class="card" style="margin-bottom:20px;border:1.5px solid rgba(192,57,43,0.3);">
+        <div class="card-header">
+          <div><h3>🚧 Maintenance Mode</h3><p>When on, the public website shows a "temporarily unavailable" page instead of the live site. Takes effect immediately — no redeploy needed. Admin panel stays fully accessible either way.</p></div>
+          <button class="toggle" id="maintenance-toggle" onclick="toggleBtn(this); toggleMaintenanceMode();"></button>
+        </div>
+      </div>
+
       <!-- LOGO SETTINGS -->
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header">
@@ -3326,6 +3334,22 @@ document.addEventListener('click', e => {
   if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
 });
 function toggleBtn(btn) { btn.classList.toggle('on'); }
+
+async function toggleMaintenanceMode() {
+  const isOn = document.getElementById('maintenance-toggle').classList.contains('on');
+  settings.maintenanceMode = isOn;
+  const ok = await dbSet('lgu_settings', settings);
+  if (ok) {
+    showToast(isOn ? 'Maintenance mode ON — public site now shows the unavailable page' : 'Maintenance mode OFF — public site is live again');
+    auditLog('settings', `Maintenance mode turned ${isOn ? 'ON' : 'OFF'}`, _currentUser);
+  } else {
+    // Revert the visual toggle if the save failed, so the UI doesn't
+    // claim a state that was never actually persisted
+    document.getElementById('maintenance-toggle').classList.toggle('on', !isOn);
+    settings.maintenanceMode = !isOn;
+    showToast('Failed to update — please try again', 'error');
+  }
+}
 
 // ═══════════════════════════════════════════════
 //  IMAGE RESIZE MODAL ENGINE
@@ -6170,6 +6194,7 @@ function applySettings() {
   if (settings.instagram)document.getElementById('set-ig').value       = settings.instagram;
   if (settings.youtube)  document.getElementById('set-yt').value       = settings.youtube;
   if (settings.tiktok)   document.getElementById('set-tt').value       = settings.tiktok;
+  document.getElementById('maintenance-toggle').classList.toggle('on', !!settings.maintenanceMode);
 
   // Restore logo — a public Storage URL stored directly in shared settings
   if (settings.logo) {

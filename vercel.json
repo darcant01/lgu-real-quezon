@@ -2,8 +2,7 @@
   "version": 2,
   "name": "lgu-real-quezon",
   "rewrites": [
-    { "source": "/news/:slug", "destination": "/api/news/:slug" },
-    { "source": "/", "destination": "/maintenance.html" }
+    { "source": "/news/:slug", "destination": "/api/news/:slug" }
   ],
   "headers": [
     {
